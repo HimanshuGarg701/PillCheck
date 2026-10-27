@@ -17,7 +17,7 @@ test('live call uses Meta endpoint, configured model and server authorization', 
   assert.ok(called); assert.equal(result.source,'meta'); assert.equal(result.requestId,'synthetic-test-request'); assert.ok(!JSON.stringify(result).includes('synthetic-test-token'));
 });
 test('upstream authentication failure does not expose its body', async () => {
-  await assert.rejects(runTask({task:'connection'}, {apiKey:'test',fetchImpl:async()=>({ok:false,status:401})}), /rejected the server credential/);
+  await assert.rejects(runTask({task:'connection'}, {apiKey:'test',fetchImpl:async()=>({ok:false,status:401,json:async()=>({error:{message:'sensitive provider detail'}})})}), /rejected the server credential/);
 });
 test('invalid model output fails closed', async () => {
   await assert.rejects(runTask({task:'connection'}, {apiKey:'test',fetchImpl:async()=>({ok:true,json:async()=>({choices:[{message:{content:'broken JSON'}}]})})}), /unreadable response/);

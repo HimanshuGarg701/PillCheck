@@ -34,7 +34,9 @@ export function makeTask(body) {
     if (!confirmed?.confirmedAt || !Number.isFinite(new Date(confirmed.confirmedAt).getTime()) || !Array.isArray(future) || future.length > 8 || !future.length) throw new RequestError('Missing schedule information.');
     if (!med.demo || med.id !== 'med-metformin' || med.minSpacingHours !== 10) throw new RequestError('A pharmacist-approved timing plan is required for this medicine.', 422);
     for (const d of future) if (typeof d.id !== 'string' || !Number.isFinite(new Date(d.scheduledAt).getTime()) || d.medicationId !== med.id || d.status !== 'pending') throw new RequestError('Invalid future schedule.');
-    content = `Generate a timing-only replan for this fictional demonstration. The dose has ALREADY been recorded taken; never advise taking or skipping it. For every pending event return exactly its doseId, unchanged doseQuantity, and a revised ISO timestamp with timezone. Keep events in their original order. Do not move earlier than their current time. Minimum spacing is 10 hours in this SYNTHETIC FIXTURE; it is not a clinical rule. All events must stay on local date ${localDay(confirmed.confirmedAt)}. If no valid solution exists, return changes: [] and explanation: "A pharmacist needs to review this timing." Explain the recorded late dose and the proposed time adjustment in plain English in 1–2 sentences, making clear it is a demo. Do not use commands like take, skip, stop, double, increase or decrease. DATA: ${JSON.stringify({ medication: { name: med.name, doseQuantity: med.doseQuantity }, confirmed, future, timeZone: typeof body.timeZone === 'string' ? body.timeZone.slice(0,80) : 'UTC' })}`;
+    const timeZone = body.timeZone || 'UTC';
+    try { new Intl.DateTimeFormat('en-US', {timeZone}).format(); } catch { throw new RequestError('Invalid time zone.'); }
+    content = `Generate a timing-only replan for this fictional demonstration. The dose has ALREADY been recorded taken; never advise taking or skipping it. For every pending event return exactly its doseId, unchanged doseQuantity, and a revised ISO timestamp with timezone. Keep events in their original order. Do not move earlier than their current time. Minimum spacing is 10 hours in this SYNTHETIC FIXTURE; it is not a clinical rule. All events must stay on local date ${localDay(confirmed.confirmedAt, timeZone)}. If no valid solution exists, return changes: [] and explanation: "A pharmacist needs to review this timing." Explain the recorded late dose and the proposed time adjustment in plain English in 1–2 sentences, making clear it is a demo. Do not use commands like take, skip, stop, double, increase or decrease. DATA: ${JSON.stringify({ medication: { name: med.name, doseQuantity: med.doseQuantity }, confirmed, future, timeZone })}`;
   } else content = 'Return message: "Meta Model API connection verified."';
   return { system, content, schema: schemas[body.task] };
 }
@@ -46,12 +48,18 @@ export async function runTask(body, { fetchImpl = fetch, apiKey = process.env.MO
     body: JSON.stringify({ model, messages: [{ role: 'system', content: task.system }, { role: 'user', content: task.content }], max_completion_tokens: 2048, response_format: { type: 'json_schema', json_schema: { name: `PillCheck_${body.task}`, schema: task.schema, strict: true } } }),
     signal: AbortSignal.timeout(24000),
   });
-  if (!result.ok) throw new RequestError(result.status === 401 ? 'Meta rejected the server credential. Check MODEL_API_KEY in Vercel.' : result.status === 429 ? 'Meta is rate-limiting requests. Please try again shortly.' : `Meta request failed (${result.status}). No schedule was changed.`, 502);
+  if (!result.ok) {
+    // Only surface a short machine error code, never provider bodies or credentials.
+    const failure = await result.json().catch(() => ({}));
+    const code = failure.error?.code;
+    const detail = typeof code === 'string' && /^[a-z_]{1,60}$/.test(code) ? `: ${code}` : '';
+    throw new RequestError(result.status === 401 ? 'Meta rejected the server credential. Check MODEL_API_KEY in Vercel.' : result.status === 429 ? 'Meta is rate-limiting requests. Please try again shortly.' : `Meta request failed (${result.status}${detail}). No schedule was changed.`, 502);
+  }
   const raw = await result.json();
   const text = raw.choices?.[0]?.message?.content;
   let data; try { data = JSON.parse(text); } catch { throw new RequestError('Meta returned an unreadable response. No schedule was changed.', 502); }
   if (body.task === 'replan') {
-    try { validateReplan(body.medication, body.confirmed, body.future, data, localDay(body.confirmed.confirmedAt)); } catch (e) { throw new RequestError(e.message, 422); }
+    try { validateReplan(body.medication, body.confirmed, body.future, data, localDay(body.confirmed.confirmedAt, body.timeZone || 'UTC'), body.timeZone || 'UTC'); } catch (e) { throw new RequestError(e.message, 422); }
   }
   if (body.task === 'scan') {
     if (!Array.isArray(data.times) || !Array.isArray(data.uncertainFields) || data.times.some(t => typeof t !== 'string') || typeof data.explanation !== 'string') throw new RequestError('The extracted label needs manual review.', 502);

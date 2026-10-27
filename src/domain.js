@@ -1,6 +1,6 @@
 export const DISCLAIMER = 'Informational only, not medical advice. Confirm with your doctor or pharmacist.';
 export const PHARMACIST = "This medicine needs your pharmacist's advice. Call your pharmacist before taking it.";
-export const localDay = (date = new Date()) => new Date(date).toLocaleDateString('en-CA');
+export const localDay = (date = new Date(), timeZone) => new Date(date).toLocaleDateString('en-CA', timeZone ? { timeZone } : undefined);
 export const atTime = (day, time) => new Date(`${day}T${time}:00`).toISOString();
 export const uid = () => globalThis.crypto.randomUUID();
 export const canonical = value => String(value || '').toLowerCase().trim().replace(/\s+/g, ' ');
@@ -59,7 +59,7 @@ export function recordDose(state, id, status, method, now, reason = '') {
   return { ...state, doses: state.doses.map(d => d.id === id ? updated : d), audit: [...state.audit, { id: uid(), type: 'dose_recorded', doseId: id, at: confirmedAt, before: dose.status, after: actual, reason: reason || 'User confirmation', method }] };
 }
 // This validates a synthetic model proposal. These are fixture constraints, NOT clinical spacing rules.
-export function validateReplan(med, confirmed, future, proposal, day) {
+export function validateReplan(med, confirmed, future, proposal, day, timeZone) {
   if (isHighRisk(med)) throw new Error(PHARMACIST);
   if (!med.demo || med.id !== 'med-metformin' || med.minSpacingHours !== 10) throw new Error('A pharmacist-approved timing plan is required for this medicine.');
   if (!proposal || !Array.isArray(proposal.changes) || proposal.changes.length !== future.length || typeof proposal.explanation !== 'string' || !proposal.explanation.trim()) throw new Error('The model did not return a complete plan.');
@@ -70,7 +70,7 @@ export function validateReplan(med, confirmed, future, proposal, day) {
     if (!original || seen.has(item.doseId) || item.doseQuantity !== med.doseQuantity) throw new Error('A proposal changed a dose or omitted an event.');
     seen.add(item.doseId);
     const when = new Date(item.newTime).getTime();
-    if (!Number.isFinite(when) || localDay(item.newTime) !== day || when < new Date(original.scheduledAt).getTime() || when - last < med.minSpacingHours * 3600000) throw new Error('The proposed times do not meet the synthetic spacing constraints.');
+    if (typeof item.newTime !== 'string' || !/(Z|[+-]\d{2}:\d{2})$/.test(item.newTime) || !Number.isFinite(when) || localDay(item.newTime, timeZone) !== day || when < new Date(original.scheduledAt).getTime() || when - last < med.minSpacingHours * 3600000) throw new Error('The proposed times do not meet the synthetic spacing constraints.');
     last = when;
   }
   return proposal;
