@@ -11,13 +11,7 @@ import {
   localDay,
   ensureToday,
   atTime,
-} from "../src/domain.js";
-import {
-  vapidKeys,
-  cancellationToken,
-  validCancellation,
-  validateSubscription,
-} from "../server/push-security.mjs";
+} from "../shared/domain.js";
 test("label salt form still detects duplicate ingredient and reference interaction", () => {
   const s = makeSeed();
   assert.equal(
@@ -121,30 +115,4 @@ test("rollover keeps completed history and creates new day without duplicate eve
     updated.doses.length,
   );
   assert.equal(updated.doses.filter((d) => d.status === "pending").length, 4);
-});
-test("push credentials are deterministic, distinct by purpose, and cancellation is capability-protected", () => {
-  process.env.MODEL_API_KEY = "synthetic-unit-test-root";
-  const keys = vapidKeys();
-  assert.equal(Buffer.from(keys.publicKey, "base64url").length, 65);
-  assert.deepEqual(vapidKeys(), keys);
-  const token = cancellationToken("run-test");
-  assert.equal(validCancellation("run-test", token), true);
-  assert.equal(validCancellation("run-other", token), false);
-  assert.equal(validCancellation("run-test", "short"), false);
-  assert.notEqual(token, keys.privateKey);
-  delete process.env.MODEL_API_KEY;
-});
-test("push endpoints reject SSRF destinations and malformed keys", () => {
-  for (const endpoint of [
-    "http://localhost",
-    "https://127.0.0.1",
-    "https://fcm.googleapis.com.evil.example/a",
-    "https://fcm.googleapis.com:8443/a",
-  ])
-    assert.throws(() =>
-      validateSubscription({
-        endpoint,
-        keys: { p256dh: "test", auth: "test" },
-      }),
-    );
 });

@@ -16,3 +16,9 @@ output/
 /.swc
 
 .pnpm-store/
+ios/.build/
+ios/.swiftpm/
+**/xcuserdata/
+*.xcuserstate
+*.ipa
+*.xcarchive/

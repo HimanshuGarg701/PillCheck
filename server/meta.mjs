@@ -4,7 +4,7 @@ import {
   validateReplan,
   localDay,
   canonical,
-} from "../src/domain.js";
+} from "../shared/domain.js";
 
 const object = (properties) => ({
   type: "object",
@@ -142,7 +142,7 @@ export function makeTask(body) {
     } catch {
       throw new RequestError("Invalid time zone.");
     }
-    content = `Generate a timing-only replan for this fictional demonstration. The dose has ALREADY been recorded taken; never advise taking or skipping it. For every pending event return exactly its doseId, unchanged doseQuantity, and a revised ISO timestamp with timezone. Keep events in their original order. Do not move earlier than their current time. Minimum spacing is 10 hours in this SYNTHETIC FIXTURE; it is not a clinical rule. All events must stay on local date ${localDay(confirmed.confirmedAt, timeZone)}. If no valid solution exists, return changes: [] and explanation: "A pharmacist needs to review this timing." Explain the recorded late dose and the proposed time adjustment in plain English in 1–2 sentences, making clear it is a demo. Do not use commands like take, skip, stop, double, increase or decrease. DATA: ${JSON.stringify({ medication: { name: med.name, doseQuantity: med.doseQuantity }, confirmed, future, timeZone })}`;
+    content = `Generate a timing-only replan for this fictional demonstration. The dose has ALREADY been recorded taken; never advise taking or skipping it. For every pending event return exactly its doseId, unchanged doseQuantity, and a revised ISO timestamp with timezone. Keep events in their original order. Do not move earlier than their current time. Minimum spacing is 10 hours in this SYNTHETIC FIXTURE; it is not a clinical rule. All events must stay on local date ${localDay(confirmed.confirmedAt, timeZone)}. If no valid solution exists, return changes: [] and explanation: "A pharmacist needs to review this timing." Explain the recorded late dose and the proposed time adjustment in ${["en-US", "es-ES", "hi-IN"].includes(body.language) ? body.language : "en-US"} in 1–2 sentences, making clear it is a demo. Do not use commands like take, skip, stop, double, increase or decrease. DATA: ${JSON.stringify({ medication: { name: med.name, doseQuantity: med.doseQuantity }, confirmed, future, timeZone })}`;
   } else content = 'Return message: "Meta Model API connection verified."';
   return { system, content, schema: schemas[body.task] };
 }

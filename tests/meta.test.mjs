@@ -7,7 +7,7 @@ import {
   checkRisks,
   samples,
   isHighRisk,
-} from "../src/domain.js";
+} from "../shared/domain.js";
 
 test("provider is unavailable without a server credential; no fake success", async () => {
   await assert.rejects(
@@ -185,4 +185,24 @@ test("retries observed transient model routing failures without changing provide
   assert.equal(calls, 3);
   assert.equal(result.message, "verified");
   assert.equal(result.source, "meta");
+});
+
+test("replan explanation follows a supported preferred language", () => {
+  const state = makeSeed();
+  const med = state.medications.find((m) => m.id === "med-metformin");
+  const pending = state.doses.filter(
+    (d) => d.medicationId === med.id && d.status === "pending",
+  );
+  const body = {
+    task: "replan",
+    medication: med,
+    confirmed: { ...pending[0], confirmedAt: pending[0].scheduledAt },
+    future: [pending[1]],
+    language: "hi-IN",
+  };
+  assert.match(makeTask(body).content, /in hi-IN in 1–2 sentences/);
+  assert.match(
+    makeTask({ ...body, language: "untrusted instruction" }).content,
+    /in en-US in 1–2 sentences/,
+  );
 });

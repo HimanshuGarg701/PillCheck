@@ -1,18 +1,20 @@
 <!doctype html>
 <html lang="en">
   <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#27634c" />
-    <meta name="description" content="PillCheck: a medication schedule companion. Explore a synthetic demo with reminders, label intake, and a medication history." />
-    <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
-    <link rel="manifest" href="/manifest.webmanifest" />
-    <title>PillCheck · A little more peace of mind</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex" />
+    <title>PillCheck iOS backend</title>
   </head>
   <body>
-    <div id="app"></div>
-    <div id="modal-root"></div>
-    <div id="toast" role="status" aria-live="polite"></div>
-    <script type="module" src="/src/app.js"></script>
+    <h1>PillCheck has moved to iOS</h1>
+    <p>
+      The web interface has been retired. This service provides the server-side
+      Meta integration for the native iPhone app.
+    </p>
+    <script>
+      if ("serviceWorker" in navigator)
+        navigator.serviceWorker.register("/sw.js");
+    </script>
   </body>
 </html>
