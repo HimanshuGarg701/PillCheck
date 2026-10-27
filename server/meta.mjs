@@ -208,6 +208,22 @@ export async function runTask(
       typeof code === "string" && /^[a-z_]{1,60}$/.test(code)
         ? `: ${code}`
         : "";
+    if (result.status === 404 && body.task === "connection") {
+      const catalog = await fetchImpl("https://api.meta.ai/v1/models", {
+        headers: { Authorization: `Bearer ${apiKey}` },
+        signal: AbortSignal.timeout(6000),
+      });
+      const models = catalog.ok ? await catalog.json() : null;
+      const listed = models?.data?.some((item) => item.id === model);
+      throw new RequestError(
+        catalog.ok
+          ? listed
+            ? "Meta lists this model for the server key, but inference returned model_not_found. No schedule was changed."
+            : "Meta does not list Muse Spark 1.3 for this server key. Check the key's project and model access in Meta. No schedule was changed."
+          : `Meta model access could not be verified (catalog HTTP ${catalog.status}). No schedule was changed.`,
+        502,
+      );
+    }
     throw new RequestError(
       result.status === 401
         ? "Meta rejected the server credential. Check MODEL_API_KEY in Vercel."

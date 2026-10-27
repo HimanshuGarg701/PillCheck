@@ -1,5 +1,14 @@
 import { scheduleFor, localDay } from "./domain.js";
 const KEY = "pillcheck:push-runs";
+function bounded(promise, message, ms = 15000) {
+  let timer;
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => {
+      timer = setTimeout(() => reject(new Error(message)), ms);
+    }),
+  ]).finally(() => clearTimeout(timer));
+}
 export const pushSupported = () =>
   "serviceWorker" in navigator &&
   "PushManager" in window &&
@@ -9,6 +18,7 @@ async function call(path, body) {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
+    signal: AbortSignal.timeout(20000),
   });
   const data = await res.json();
   if (!res.ok)
@@ -20,27 +30,40 @@ function keyBytes(str) {
   return Uint8Array.from(text, (c) => c.charCodeAt(0));
 }
 async function subscription() {
-  const sw = await navigator.serviceWorker.ready;
+  const sw = await bounded(
+    navigator.serviceWorker.ready,
+    "Offline support has not finished installing. Reload the app while online, then try again.",
+  );
   return sw.pushManager.getSubscription();
 }
 export async function enablePush(state) {
   if (!pushSupported())
     throw new Error("This browser does not support background Web Push.");
-  const permission = await Notification.requestPermission();
+  const permission = await bounded(
+    Notification.requestPermission(),
+    "The browser has not completed notification permission. Open PillCheck in Chrome, Edge, or Safari and allow notifications.",
+    20000,
+  );
   if (permission !== "granted")
     throw new Error(
       "Notifications were not allowed. You can enable them in your browser settings.",
     );
-  const sw = await navigator.serviceWorker.ready;
+  const sw = await bounded(
+    navigator.serviceWorker.ready,
+    "Offline support has not finished installing. Reload the app while online, then try again.",
+  );
   const info = await fetch("/api/push/key").then((r) => r.json());
   if (!info.publicKey)
     throw new Error(
       info.error || "The server is not ready for background reminders.",
     );
-  await sw.pushManager.subscribe({
-    userVisibleOnly: true,
-    applicationServerKey: keyBytes(info.publicKey),
-  });
+  await bounded(
+    sw.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: keyBytes(info.publicKey),
+    }),
+    "This browser could not connect to its push service. Try Chrome, Edge, or Safari with notifications allowed.",
+  );
   await syncPush(state, true);
 }
 export async function disablePush() {
