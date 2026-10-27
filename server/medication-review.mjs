@@ -269,9 +269,9 @@ const spacingSource = {
   id: "levothyroxine-calcium-spacing",
   title: "Levothyroxine sodium prescribing information · interactions",
   url: "https://dailymed.nlm.nih.gov/dailymed/drugInfo.cfm?setid=52a07ade-4098-477d-874e-dd692667041e",
-  text: "Calcium carbonate is listed among medicines that can reduce levothyroxine absorption. The label specifies separation of at least four hours.",
+  text: "calcium carbonate\nPhosphate binders may bind to levothyroxine. Administer levothyroxine sodium at least 4 hours apart from these agents.",
   truncated: false,
-  note: "U.S. oral-tablet label reviewed October 27, 2026. Applies only to this ingredient pair; meals and other prescription constraints still require pharmacist review.",
+  note: "Two verbatim excerpts from the same row of Table 5 in the U.S. oral-tablet label, reviewed October 27, 2026. Applies only to this ingredient pair; meals and other prescription constraints still require pharmacist review.",
 };
 function knownIngredients(med, resolved) {
   // An unresolved brand never silently inherits the ingredient typed into the form.
