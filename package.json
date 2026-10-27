@@ -20,6 +20,7 @@
     "workflow": "^5.2.3"
   },
   "devDependencies": {
+    "prettier": "^3.9.10",
     "vite": "^7.1.0"
   }
 }

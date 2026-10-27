@@ -42,7 +42,7 @@ pnpm preview
 
 Vite builds the browser app; Nitro provides server routes; Vercel Workflows persists and resumes reminder jobs. Pushes to `main` deploy through the Vercel GitHub integration. No separate account or paid reminder service is required by the implementation. Hosting/provider quotas still apply.
 
-`MODEL_ID` defaults to `muse-spark-1.3`. The server endpoint is `https://api.meta.ai/v1/chat/completions`. The API credential is never exposed in a browser bundle. VAPID and cancellation secrets are derived server-side with separate HMAC purposes from the configured server secret. Rotating that secret requires re-enabling Web Push on each browser.
+`MODEL_ID` defaults to `muse-spark-1.3`. The server endpoint is `https://api.meta.ai/v1/responses`. The API credential is never exposed in a browser bundle. VAPID and cancellation secrets are derived server-side with separate HMAC purposes from the configured server secret. Rotating that secret requires re-enabling Web Push on each browser.
 
 ## Verification
 

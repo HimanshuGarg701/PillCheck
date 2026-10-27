@@ -1,11 +1,126 @@
-import {scheduleFor, localDay} from './domain.js';
-const KEY='pillcheck:push-runs';
-export const pushSupported=()=>('serviceWorker' in navigator)&&('PushManager' in window)&&('Notification' in window);
-async function call(path,body){const res=await fetch(`/api/push/${path}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});const data=await res.json();if(!res.ok)throw new Error(data.error||'Background reminders could not be updated.');return data;}
-function keyBytes(str){const text=atob(str.replace(/-/g,'+').replace(/_/g,'/'));return Uint8Array.from(text,c=>c.charCodeAt(0));}
-async function subscription(){const sw=await navigator.serviceWorker.ready;return sw.pushManager.getSubscription();}
-export async function enablePush(state){if(!pushSupported())throw new Error('This browser does not support background Web Push.');const permission=await Notification.requestPermission();if(permission!=='granted')throw new Error('Notifications were not allowed. You can enable them in your browser settings.');const sw=await navigator.serviceWorker.ready;const info=await fetch('/api/push/key').then(r=>r.json());if(!info.publicKey)throw new Error(info.error||'The server is not ready for background reminders.');await sw.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:keyBytes(info.publicKey)});await syncPush(state,true);}
-export async function disablePush(){const runs=JSON.parse(localStorage.getItem(KEY)||'{}');for(const [id,r] of Object.entries(runs)){await call('cancel',r);delete runs[id];localStorage.setItem(KEY,JSON.stringify(runs));}const sub=await subscription();if(sub)await sub.unsubscribe();}
+import { scheduleFor, localDay } from "./domain.js";
+const KEY = "pillcheck:push-runs";
+export const pushSupported = () =>
+  "serviceWorker" in navigator &&
+  "PushManager" in window &&
+  "Notification" in window;
+async function call(path, body) {
+  const res = await fetch(`/api/push/${path}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  const data = await res.json();
+  if (!res.ok)
+    throw new Error(data.error || "Background reminders could not be updated.");
+  return data;
+}
+function keyBytes(str) {
+  const text = atob(str.replace(/-/g, "+").replace(/_/g, "/"));
+  return Uint8Array.from(text, (c) => c.charCodeAt(0));
+}
+async function subscription() {
+  const sw = await navigator.serviceWorker.ready;
+  return sw.pushManager.getSubscription();
+}
+export async function enablePush(state) {
+  if (!pushSupported())
+    throw new Error("This browser does not support background Web Push.");
+  const permission = await Notification.requestPermission();
+  if (permission !== "granted")
+    throw new Error(
+      "Notifications were not allowed. You can enable them in your browser settings.",
+    );
+  const sw = await navigator.serviceWorker.ready;
+  const info = await fetch("/api/push/key").then((r) => r.json());
+  if (!info.publicKey)
+    throw new Error(
+      info.error || "The server is not ready for background reminders.",
+    );
+  await sw.pushManager.subscribe({
+    userVisibleOnly: true,
+    applicationServerKey: keyBytes(info.publicKey),
+  });
+  await syncPush(state, true);
+}
+export async function disablePush() {
+  const runs = JSON.parse(localStorage.getItem(KEY) || "{}");
+  for (const [id, r] of Object.entries(runs)) {
+    await call("cancel", r);
+    delete runs[id];
+    localStorage.setItem(KEY, JSON.stringify(runs));
+  }
+  const sub = await subscription();
+  if (sub) await sub.unsubscribe();
+}
 let syncing;
-export async function syncPush(state,force=false){if(syncing)return syncing;if(!force&&!state.pushEnabled)return;if(!navigator.onLine)return;syncing=(async()=>{const sub=await subscription();if(!sub)throw new Error('Background reminder permission needs to be enabled again.');const target=[];const current=Date.now();for(let offset=0;offset<7;offset++){const day=new Date();day.setDate(day.getDate()+offset);for(const med of state.medications){for(const d of scheduleFor(med,localDay(day))){const actual=state.doses.find(x=>x.id===d.id)||d;if(actual.status==='pending'&&new Date(actual.scheduledAt).getTime()+state.reminderWindowMinutes*60000>current)target.push(actual);}}}const runs=JSON.parse(localStorage.getItem(KEY)||'{}');for(const [id,run] of Object.entries(runs)){const wanted=target.find(d=>d.id===id);if(!wanted||run.scheduledAt!==wanted.scheduledAt||run.window!==state.reminderWindowMinutes){await call('cancel',run);delete runs[id];localStorage.setItem(KEY,JSON.stringify(runs));}}for(const d of target){if(!runs[d.id]){const run=await call('schedule',{subscription:sub.toJSON(),doseId:d.id,scheduledAt:d.scheduledAt,windowMinutes:state.reminderWindowMinutes});runs[d.id]={...run,scheduledAt:d.scheduledAt,window:state.reminderWindowMinutes};localStorage.setItem(KEY,JSON.stringify(runs));}}})().finally(()=>syncing=null);return syncing;}
-export async function testPush(){const sub=await subscription();if(!sub)throw new Error('Enable background reminders first.');return call('schedule',{subscription:sub.toJSON(),scheduledAt:new Date(Date.now()+10000).toISOString(),windowMinutes:1,test:true});}
+export async function syncPush(state, force = false) {
+  if (syncing) return syncing;
+  if (!force && !state.pushEnabled) return;
+  if (!navigator.onLine) return;
+  syncing = (async () => {
+    const sub = await subscription();
+    if (!sub)
+      throw new Error(
+        "Background reminder permission needs to be enabled again.",
+      );
+    const target = [];
+    const current = Date.now();
+    for (let offset = 0; offset < 7; offset++) {
+      const day = new Date();
+      day.setDate(day.getDate() + offset);
+      for (const med of state.medications) {
+        for (const d of scheduleFor(med, localDay(day))) {
+          const actual = state.doses.find((x) => x.id === d.id) || d;
+          if (
+            actual.status === "pending" &&
+            new Date(actual.scheduledAt).getTime() +
+              state.reminderWindowMinutes * 60000 >
+              current
+          )
+            target.push(actual);
+        }
+      }
+    }
+    const runs = JSON.parse(localStorage.getItem(KEY) || "{}");
+    for (const [id, run] of Object.entries(runs)) {
+      const wanted = target.find((d) => d.id === id);
+      if (
+        !wanted ||
+        run.scheduledAt !== wanted.scheduledAt ||
+        run.window !== state.reminderWindowMinutes
+      ) {
+        await call("cancel", run);
+        delete runs[id];
+        localStorage.setItem(KEY, JSON.stringify(runs));
+      }
+    }
+    for (const d of target) {
+      if (!runs[d.id]) {
+        const run = await call("schedule", {
+          subscription: sub.toJSON(),
+          doseId: d.id,
+          scheduledAt: d.scheduledAt,
+          windowMinutes: state.reminderWindowMinutes,
+        });
+        runs[d.id] = {
+          ...run,
+          scheduledAt: d.scheduledAt,
+          window: state.reminderWindowMinutes,
+        };
+        localStorage.setItem(KEY, JSON.stringify(runs));
+      }
+    }
+  })().finally(() => (syncing = null));
+  return syncing;
+}
+export async function testPush() {
+  const sub = await subscription();
+  if (!sub) throw new Error("Enable background reminders first.");
+  return call("schedule", {
+    subscription: sub.toJSON(),
+    scheduledAt: new Date(Date.now() + 10000).toISOString(),
+    windowMinutes: 1,
+    test: true,
+  });
+}
