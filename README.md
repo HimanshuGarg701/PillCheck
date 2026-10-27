@@ -20,7 +20,7 @@ The application must never change dose amounts, combine doses, claim a combinati
 
 - Public source repository: [HimanshuGarg701/PillCheck](https://github.com/HimanshuGarg701/PillCheck)
 - Hosting target: Vercel with GitHub deployment integration.
-- Model provider: Meta Model API. The provided brief names Llama; the current account lists Muse models. Model selection is awaiting owner confirmation.
+- Model provider: Meta Model API, using Muse Spark 1.3. The owner approved this update from the brief's Llama name after checking the current account catalog.
 - Credentials: server-side environment variables only. Never commit keys, paste them into issues, or expose them in browser bundles.
 - All submitted data, labels, screenshots, and video content must be synthetic.
 

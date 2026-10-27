@@ -1,0 +1,48 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { makeTask, runTask } from '../server/meta.mjs';
+import { makeSeed, recordDose, checkRisks, samples, isHighRisk } from '../src/domain.js';
+
+test('provider is unavailable without a server credential; no fake success', async () => {
+  await assert.rejects(runTask({task:'connection'}, {apiKey:''}), /not configured/);
+});
+test('live call uses Meta endpoint, configured model and server authorization', async () => {
+  let called = false;
+  const result = await runTask({task:'connection'}, {apiKey:'synthetic-test-token', fetchImpl:async (url, request) => {
+    called = true; assert.equal(url,'https://api.meta.ai/v1/chat/completions');
+    assert.equal(request.headers.Authorization,'Bearer synthetic-test-token');
+    const payload = JSON.parse(request.body); assert.equal(payload.model,'muse-spark-1.3'); assert.equal(payload.response_format.type,'json_schema');
+    return {ok:true,json:async()=>({id:'synthetic-test-request',choices:[{message:{content:JSON.stringify({message:'Connected'})}}]})};
+  }});
+  assert.ok(called); assert.equal(result.source,'meta'); assert.equal(result.requestId,'synthetic-test-request'); assert.ok(!JSON.stringify(result).includes('synthetic-test-token'));
+});
+test('upstream authentication failure does not expose its body', async () => {
+  await assert.rejects(runTask({task:'connection'}, {apiKey:'test',fetchImpl:async()=>({ok:false,status:401})}), /rejected the server credential/);
+});
+test('invalid model output fails closed', async () => {
+  await assert.rejects(runTask({task:'connection'}, {apiKey:'test',fetchImpl:async()=>({ok:true,json:async()=>({choices:[{message:{content:'broken JSON'}}]})})}), /unreadable response/);
+});
+test('uploaded label data is submitted as an image, with an extraction schema', () => {
+  const task = makeTask({task:'scan',image:'data:image/png;base64,aGVsbG8='});
+  assert.equal(task.content[1].type,'image_url'); assert.ok(task.schema.required.includes('uncertainFields'));
+  assert.throws(()=>makeTask({task:'scan',image:'https://untrusted.example/test.png'}), /PNG/);
+});
+test('high-risk medicines cannot reach model-based replanning', () => {
+  for(const name of ['Warfarin','Insulin','Levetiracetam','Tacrolimus','Carbidopa']) {
+    assert.ok(isHighRisk({name})); assert.throws(()=>makeTask({task:'replan',medication:{name}}), /pharmacist/);
+  }
+});
+test('duplicate total includes all daily amounts, without a safe-to-mix claim', () => {
+  const state = makeSeed(); const flags = checkRisks({...samples[1],id:'new'},state.medications);
+  assert.equal(flags[0].combinedMg,2000); assert.match(flags[0].explanation,/same active ingredient/);
+  assert.ok(!/safe to/i.test(flags[0].explanation));
+});
+test('dose confirmation is append-only, cannot double-record, and retains exact late time', () => {
+  const state = makeSeed(); const dose = state.doses.find(d=>d.status==='pending');
+  const when = new Date(new Date(dose.scheduledAt).getTime()+2*3600000);
+  const updated = recordDose(state,dose.id,'taken','button',when);
+  assert.equal(updated.doses.find(d=>d.id===dose.id).status,'taken_late');
+  assert.equal(updated.doses.find(d=>d.id===dose.id).confirmedAt,when.toISOString());
+  assert.equal(updated.audit.length,state.audit.length+1); assert.equal(dose.status,'pending');
+  assert.throws(()=>recordDose(updated,dose.id,'taken','button',when), /already recorded/);
+});

@@ -7,7 +7,7 @@ This checklist translates the supplied PillCheck requirements brief into verific
 - [x] Create a public repository in HimanshuGarg701.
 - [ ] Connect Vercel to this repository for automatic deployments.
 - [ ] Configure the Meta Model API credential only on the server.
-- [ ] Resolve the brief's Llama model name against current Meta account availability with the owner.
+- [x] Resolve the brief's Llama model name against current Meta account availability with the owner: Muse Spark 1.3 approved.
 - [ ] Deploy one responsive web app at a public HTTPS URL, with no login required by judges.
 - [ ] Verify the full flow on phone and desktop, including an incognito session.
 - [ ] Preload 3–4 synthetic medications and a full daily schedule.
@@ -59,7 +59,7 @@ The missed-dose timing rules and the prohibition on medical advice require caref
 ## Explicit unresolved constraints
 
 1. **Closed-app offline reminders:** ordinary web timers and localStorage cannot guarantee reminders after a device restart or while the browser is closed. Web Push can support background delivery with connectivity, but does not itself fulfill offline delivery. The requested web-only scope and this acceptance criterion need a tested platform strategy; the feature must not be silently downgraded.
-2. **Model availability:** the original brief names Llama. The current Meta account catalog lists Muse models. Owner confirmation is required before substituting a model.
+2. **Model availability (resolved):** the owner approved Muse Spark 1.3 through Meta Model API in place of the brief's Llama name.
 3. **Clinical timing constraints:** medication-specific minimum spacing and eligibility for timing adjustments need an appropriate source and review. Synthetic fixture thresholds are not clinical rules.
 
 ## Phase 2 and exclusions
