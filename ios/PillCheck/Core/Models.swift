@@ -1,6 +1,12 @@
 import Foundation
 
 enum PillCheckCopy {
+    // Present older system labels consistently without rewriting saved history.
+    static func recordText(_ value: String) -> String {
+        value.replacingOccurrences(of: "Fictional profile and synthetic records only.", with: "Sample medicines and history added.")
+            .replacingOccurrences(of: "Fictional late-dose example", with: "Sample late check-in")
+            .replacingOccurrences(of: "Synthetic duplicate-entry test completed", with: "Sample duplicate check completed")
+    }
     static let disclaimer = "Informational only, not medical advice. Confirm with your doctor or pharmacist."
     static let pharmacist = "This medicine needs your pharmacist’s advice. Call your pharmacist before taking it."
     static func pharmacist(language: String) -> String {
@@ -61,6 +67,16 @@ struct DoseEvent: Identifiable, Codable, Equatable {
     var method: String? = nil
     var reason: String? = nil
     var replanReason: String? = nil
+    var isSampleEntry: Bool { method == "sample" || method == "synthetic-seed" }
+    var methodTitle: String {
+        if isSampleEntry { return "Sample entry" }
+        switch method {
+        case "button": return "Button"
+        case "voice": return "Voice"
+        case "notification": return "Notification"
+        default: return method ?? "Not recorded"
+        }
+    }
 }
 
 struct ScheduleChange: Identifiable, Codable, Equatable {
@@ -95,7 +111,8 @@ struct AuditEntry: Identifiable, Codable, Equatable {
 
 struct PillCheckState: Codable, Equatable {
     var version = 1
-    var patient = "Alex Morgan (fictional)"
+    var patient = "Alex Morgan"
+    var patientDisplayName: String { patient == "Alex Morgan (fictional)" ? "Alex Morgan" : patient }
     var medications: [Medication]
     var doses: [DoseEvent]
     var changes: [ScheduleChange] = []

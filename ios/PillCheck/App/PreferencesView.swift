@@ -7,13 +7,14 @@ struct PreferencesView: View {
     @State private var checking = false
     @State private var connection: String?
     @State private var shareRecords = false
+    @State private var lateIntro = false
+    @State private var showReplan = false
     var body: some View {
         NavigationStack {
             Form {
                 Section {
-                    DemoBadge()
                     Text("A little help, your way.").font(.system(.title, design: .rounded, weight: .bold))
-                    Text("Synthetic records only. Your medication history is stored on this iPhone and survives app restarts.").foregroundStyle(.secondary)
+                    Text("Your medication history is stored on this iPhone and is available offline.").foregroundStyle(.secondary)
                 }
                 Section("Voice & language") {
                     Picker("Spoken language", selection: Binding(get: { store.state.language }, set: { value in update { $0.language = value } })) {
@@ -24,12 +25,16 @@ struct PreferencesView: View {
                     Text("Meta writes reminder text in this language. iOS reads it aloud. Previously generated text is cached for offline playback. Voice confirmation uses on-device recognition when supported.").font(.footnote).foregroundStyle(.secondary)
                 }
                 NotificationSettings(store: store, reminders: store.notifications)
-                Section("Practice clock") {
-                    Toggle("Use practice time", isOn: Binding(get: { store.state.practiceClockEnabled }, set: { value in do { try store.setPractice(value) } catch { store.error = error.localizedDescription } }))
+                Section {
+                  DisclosureGroup("Sample medicines & previews") {
+                    Text("PillCheck includes sample medicines and 30 days of sample history to help you explore the app.").font(.footnote).foregroundStyle(.secondary)
+                    Toggle("Preview reminders at another time", isOn: Binding(get: { store.state.practiceClockEnabled }, set: { value in do { try store.setPractice(value) } catch { store.error = error.localizedDescription } }))
                     if store.state.practiceClockEnabled {
-                        DatePicker("Practice time", selection: Binding(get: { store.state.practiceTime }, set: { value in update { $0.practiceTime = value }; store.refresh() }), displayedComponents: .hourAndMinute)
+                        DatePicker("Preview time", selection: Binding(get: { store.state.practiceTime }, set: { value in update { $0.practiceTime = value }; store.refresh() }), displayedComponents: .hourAndMinute)
                     }
-                    Text("Practice time is for the fictional examples. Enabling it switches off real notifications. Saved confirmations are retained when you return to the real clock.").font(.footnote).foregroundStyle(.secondary)
+                    Button("Preview a late check-in") { lateIntro = true }
+                    Text("Previews pause notifications and use the selected time for check-ins. Saved check-ins remain in history when you end the preview.").font(.footnote).foregroundStyle(.secondary)
+                  }
                 }
                 Section("Recorded class concerns") {
                     TextField("e.g. statin, anticoagulant", text: $problems)
@@ -39,14 +44,14 @@ struct PreferencesView: View {
                     }
                     Text("This records a known problem with a medicine class. It is not a diagnosis or allergy assessment.").font(.footnote).foregroundStyle(.secondary)
                 }
-                Section("Meta Model API") {
-                    LabeledContent("Approved model", value: "Muse Spark 1.3")
+                Section("AI assistance") {
+                    LabeledContent("Model", value: "Muse Spark 1.3")
                     Button {
                         checking = true
                         Task { do { connection = try await store.meta.checkConnection(); store.modelStatus = "Muse Spark 1.3 · live" } catch { connection = error.localizedDescription }; checking = false }
-                    } label: { HStack { Text("Check live connection"); if checking { Spacer(); ProgressView() } } }.disabled(checking)
+                    } label: { HStack { Text("Check connection"); if checking { Spacer(); ProgressView() } } }.disabled(checking)
                     if let connection { Text(connection).font(.footnote).textSelection(.enabled) }
-                    Text("Label parsing, interaction and ingredient review, reminder text, and timing drafts use the live model. Persistent provider errors are shown without fabricated results. The credential stays on the server.").font(.footnote).foregroundStyle(.secondary)
+                    Text("Meta helps read labels, review ingredients and interactions, and explain timing. AI checks require an internet connection. Review findings with your pharmacist before changing your prescription.").font(.footnote).foregroundStyle(.secondary)
                 }
                 Section("Your records") {
                     Button { shareRecords = true } label: { Label("Export all records (JSON)", systemImage: "square.and.arrow.up") }
@@ -56,6 +61,12 @@ struct PreferencesView: View {
             }.scrollContentBackground(.hidden).background(Theme.cream).navigationTitle("Preferences").navigationBarTitleDisplayMode(.inline)
                 .onAppear { problems = store.state.problems.joined(separator: ", ") }
                 .sheet(isPresented: $shareRecords) { ShareSheet(items: [store.fileURL]) }
+                .sheet(isPresented: $showReplan) { if let id = store.lateDoseID { ReplanView(doseID: id) } }
+                .confirmationDialog("Preview a 10 AM check-in?", isPresented: $lateIntro, titleVisibility: .visible) {
+                    Button("Record sample check-in") {
+                        do { try store.startLateExample(); showReplan = true } catch { store.error = error.localizedDescription }
+                    }
+                } message: { Text("This records the sample 8 AM metformin dose as taken at 10 AM and pauses notifications. The check-in remains in history after the preview ends.") }
         }
     }
     private func update(_ change: (inout PillCheckState) -> Void) { do { try store.change(change) } catch { store.error = error.localizedDescription } }

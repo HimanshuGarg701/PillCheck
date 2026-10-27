@@ -1,6 +1,6 @@
 # PillCheck for iOS
 
-A native SwiftUI medication schedule companion using fictional records. The iOS app and its Meta API backend live in this public repository.
+A native SwiftUI medication schedule companion with medication history and AI-assisted reviews. The iOS app and its Meta API backend live in this public repository.
 
 [Public source](https://github.com/HimanshuGarg701/PillCheck) · [Requirements and verification](docs/requirements.md) · [Architecture](docs/architecture.md)
 
@@ -16,17 +16,17 @@ Requires Xcode with an iOS 17 or newer SDK. Development verification uses Xcode 
 
 For a physical iPhone, connect and unlock it, select your own team under **Signing & Capabilities**, and choose that device in Xcode. The repository does not contain a signing identity or provisioning profile. Device signing, installation, and notification behavior after an actual phone restart still need verification.
 
-The app starts with Alex Morgan's fictional profile, three medicines, and 30 days of sample history. Records persist in the app's Documents directory. An app update preserves them; uninstalling the app removes local data. Export records before uninstalling.
+The app starts with a sample profile for Alex Morgan, three medicines, and 30 days of sample history. Records persist in the app's Documents directory. An app update preserves them; uninstalling the app removes local data. Export records before uninstalling.
 
 ## Use the app
 
 - **Today:** review grouped reminder cards, then confirm the group on its final card. Confirmations record an already-taken dose at the current time. Skipped doses can include a reason.
-- **Add medicine:** use one of three bundled synthetic label images, import an image, paste label text, or enter fields manually. Review is mandatory. Recognized names can fill the active ingredient. An AI review compares the new medicine with the active and recently stopped list, using U.S. RxNorm ingredient identities and retrieved label references. Review findings require acknowledgment.
+- **Add medicine:** photograph or import a label, paste its text, or enter medicine details manually. Three optional sample labels are available under **Try a sample label**. Review is mandatory. Recognized names can fill the active ingredient. An AI review compares the new medicine with the active and recently stopped list, using U.S. RxNorm ingredient identities and retrieved label references. Review findings require acknowledgment.
 - **Medicines:** use **AI interactions & timing** to review a saved medicine against the rest of the list, inspect ingredient overlap and source-linked findings, and view historical review snapshots. Updating or archiving a prescription preserves earlier medication versions, dose records, and the audit trail.
 - **History:** filter dates and medicines, inspect adherence, and export a native PDF through the iOS share sheet.
-- **Preferences:** choose English, Spanish, or Hindi for speech; enable local notifications; export all records as JSON; or use the optional practice clock. Practice mode switches off real notifications.
+- **Preferences:** choose English, Spanish, or Hindi for speech; enable local notifications; export all records as JSON; or expand **Sample medicines & previews** to explore check-ins at another time. Reminder previews pause notifications.
 
-The late-dose replan workflow is limited to the seeded metformin scenario. Its 10-hour spacing is a fictional fixture, not clinical guidance. The separate AI medication review can offer a pharmacist-review timing draft for the supported label-spacing rule described below. Quantities never change through either workflow.
+The late-dose replan workflow is limited to the seeded metformin scenario. Its 10-hour spacing belongs to that sample schedule and is not clinical guidance. The separate AI medication review can offer a pharmacist-review timing draft for the supported label-spacing rule described below. Quantities never change through either workflow.
 
 ## Local reminders
 
@@ -36,7 +36,7 @@ The app queues at most 60 dose alerts and displays the scheduled-through date. O
 
 ## Meta backend
 
-The owner approved **Muse Spark 1.3 through Meta Model API**. The app sends selected synthetic label data and limited reminder/replan data to the backend at `https://pillcheck-zeta.vercel.app/api/ai`. `MODEL_API_KEY` remains on Vercel; no credential is bundled in the iOS app.
+The owner approved **Muse Spark 1.3 through Meta Model API**. The app sends selected label data and limited reminder/replan data to the backend at `https://pillcheck-zeta.vercel.app/api/ai`. `MODEL_API_KEY` remains on Vercel; no credential is bundled in the iOS app.
 
 The previous browser application has been retired. The Vercel root now identifies the iOS backend, and the retirement service worker removes the previous PWA cache and push subscription without erasing browser records. The earlier implementation remains available in Git history at `07551df`.
 
@@ -75,4 +75,4 @@ xcodebuild -project ios/PillCheck.xcodeproj -scheme PillCheck \
 
 The core test suite covers duplicate totals, high-risk protection, atomic confirmation, timing validation, history-preserving regimen changes, date rollover, notification cadence/cancellation, and persistent record round trips. The backend suite checks request validation, Meta integration, errors, and matching safety boundaries.
 
-This is a synthetic-data prototype. Offline interaction flags cover a curated metformin/cimetidine pair. The new AI review examines retrieved U.S. ingredient label excerpts for other pairs, but this is not a comprehensive clinical interaction database. No flag establishes safety. The app has no account, cloud history sync, caregiver escalation, or travel-time-zone workflow. Submission, distribution, and video work are outside the current iOS scope.
+Offline interaction flags cover a curated metformin/cimetidine pair. The new AI review examines retrieved U.S. ingredient label excerpts for other pairs, but this is not a comprehensive clinical interaction database. No flag establishes safety. The app has no account, cloud history sync, caregiver escalation, or travel-time-zone workflow. Submission, distribution, and video work are outside the current iOS scope.

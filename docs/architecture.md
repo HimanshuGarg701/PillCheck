@@ -26,7 +26,7 @@ Already-scheduled local notifications do not require a running application or ne
 
 The Vercel-only credential calls Muse Spark 1.3 through Meta's Responses endpoint. Selected label images are resized locally and submitted as image input, never replaced with fixture text. Missing fields remain uncertain and require review. Failed requests do not create medicines or change schedules. Reminder text is cached locally by exact medicine, quantity, unit, and language for offline playback.
 
-Timing proposals are limited to the explicitly seeded fictional metformin scenario. Both the backend and native engine require unchanged quantities and identities, original order, no earlier times, the same local date, and the fictional spacing. High-risk detection blocks automatic proposals. Other medicines refer to a pharmacist; no clinical spacing data is invented.
+Timing proposals are limited to the preloaded metformin sample schedule. Both the backend and native engine require unchanged quantities and identities, original order, no earlier times, the same local date, and the sample spacing interval. High-risk detection blocks automatic proposals. Other medicines refer to a pharmacist; no clinical spacing data is invented.
 
 The JavaScript server shares `shared/domain.js` with backend tests. Swift implements the matching client rules independently with its own tests. Neither validator relies on a model to determine arithmetic or accept schedule mutations.
 
@@ -44,9 +44,13 @@ The root HTML is a small migration notice. `/sw.js` replaces the prior PWA worke
 
 ## Boundaries
 
-- Synthetic records only; one offline interaction pair, live U.S. label-excerpt review, and limited name/class matching. These do not form a comprehensive clinical interaction database.
+- Preloaded sample records; one offline interaction pair, live U.S. label-excerpt review, and limited name/class matching. These do not form a comprehensive clinical interaction database.
 - No cloud record sync, account recovery, caregiver escalation, or travel-time-zone management.
 - Native UI is English; spoken reminders and explanations support English, Spanish, and Hindi, subject to available voices/on-device recognition.
 - A 60-alert queue provides a visible finite coverage horizon, not indefinite offline operation.
 - Provider routing errors can prevent live AI operations; the app reports them and preserves manual/local workflows.
 - Tests verify software behavior, not clinical safety or reliable notification delivery on every physical iPhone.
+
+## Product wording and sample data
+
+The main screens use ordinary medicine, prescription, and history terminology. Sample labels and reminder previews are optional controls, with the latter grouped in Preferences. Sample label images are rendered from native SwiftUI text before the actual image is submitted to Meta. Historical sample entries remain identified as samples in history and PDF exports. Known legacy system labels are formatted for display without rewriting saved audit records. Spoken reminder cache keys are versioned so previously generated development wording is not replayed. Clinical limitations and pharmacist-review requirements remain explicit.

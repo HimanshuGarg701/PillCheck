@@ -13,7 +13,7 @@
     <key>UIApplicationSceneManifest</key><dict><key>UIApplicationSupportsMultipleScenes</key><false/></dict>
     <key>UISupportedInterfaceOrientations</key><array><string>UIInterfaceOrientationPortrait</string><string>UIInterfaceOrientationLandscapeLeft</string><string>UIInterfaceOrientationLandscapeRight</string></array>
     <key>UISupportedInterfaceOrientations~ipad</key><array><string>UIInterfaceOrientationPortrait</string><string>UIInterfaceOrientationPortraitUpsideDown</string><string>UIInterfaceOrientationLandscapeLeft</string><string>UIInterfaceOrientationLandscapeRight</string></array>
-    <key>NSCameraUsageDescription</key><string>Photograph a synthetic prescription label for review. You can also import a file or use a bundled sample without a camera.</string>
+    <key>NSCameraUsageDescription</key><string>PillCheck uses your camera to read medicine labels. You review the extracted details before saving. You can also choose a photo or enter details manually.</string>
     <key>NSMicrophoneUsageDescription</key><string>Listen for Done or Next only when you tap the voice button.</string>
     <key>NSSpeechRecognitionUsageDescription</key><string>Recognize dose confirmations on this device when supported. Buttons always remain available.</string>
 </dict></plist>

@@ -4,7 +4,7 @@ root=Path(__file__).resolve().parent.parent
 base=root/'ios'
 def uid(text): return hashlib.sha256(text.encode()).hexdigest()[:24].upper()
 files=sorted((base/'PillCheck').rglob('*.swift'))
-resources=sorted((base/'PillCheck/Resources').glob('*.png'))+[base/'PillCheck/Resources/Assets.xcassets']
+resources=[base/'PillCheck/Resources/Assets.xcassets']
 objects=[]
 def add(key,body): objects.append(f'{uid(key)} = {{ {body} }};')
 for file in files+resources:

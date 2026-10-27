@@ -150,7 +150,7 @@ enum MedicationEngine {
             let original = future[offset]
             guard change.doseId == original.id, seen.insert(change.doseId).inserted, change.doseQuantity == medication.doseQuantity,
                   PillTime.sameDay(change.newTime, confirmedAt), change.newTime >= original.scheduledAt,
-                  change.newTime.timeIntervalSince(previous) >= 10 * 3600 else { throw PillCheckError("The proposal changed a dose or broke the fictional spacing rule. No times changed.") }
+                  change.newTime.timeIntervalSince(previous) >= 10 * 3600 else { throw PillCheckError("The proposal changed a dose or did not meet the sample timing interval. No times changed.") }
             changes.append(ScheduleChange(doseId: change.doseId, medicationId: medication.id, oldTime: original.scheduledAt, newTime: change.newTime, reason: proposal.explanation, at: confirmedAt))
             previous = change.newTime
         }
@@ -168,9 +168,9 @@ enum SeedData {
     static func medicines(now: Date) -> [Medication] {
         let start = PillTime.addingDays(-30, to: PillTime.day(now))
         return [
-            Medication(id: "med-metformin", name: "Metformin", ingredient: "metformin", strengthMg: 500, doseQuantity: 1, doseUnit: "tablet", frequency: "Twice daily", times: ["08:00", "18:00"], instructions: "With meals", startDate: start, minSpacingHours: 10, source: "synthetic-seed"),
-            Medication(id: "med-amlodipine", name: "Amlodipine", ingredient: "amlodipine", strengthMg: 5, doseQuantity: 1, doseUnit: "tablet", frequency: "Once daily", times: ["08:00"], instructions: "Follow the recorded prescription", startDate: start, source: "synthetic-seed"),
-            Medication(id: "med-atorvastatin", name: "Atorvastatin", ingredient: "atorvastatin", strengthMg: 20, doseQuantity: 1, doseUnit: "tablet", frequency: "Once daily", times: ["20:00"], instructions: "Follow the recorded prescription", startDate: start, source: "synthetic-seed")
+            Medication(id: "med-metformin", name: "Metformin", ingredient: "metformin", strengthMg: 500, doseQuantity: 1, doseUnit: "tablet", frequency: "Twice daily", times: ["08:00", "18:00"], instructions: "With meals", startDate: start, minSpacingHours: 10, source: "sample"),
+            Medication(id: "med-amlodipine", name: "Amlodipine", ingredient: "amlodipine", strengthMg: 5, doseQuantity: 1, doseUnit: "tablet", frequency: "Once daily", times: ["08:00"], instructions: "Follow the recorded prescription", startDate: start, source: "sample"),
+            Medication(id: "med-atorvastatin", name: "Atorvastatin", ingredient: "atorvastatin", strengthMg: 20, doseQuantity: 1, doseUnit: "tablet", frequency: "Once daily", times: ["20:00"], instructions: "Follow the recorded prescription", startDate: start, source: "sample")
         ]
     }
     static func make(now: Date = Date()) -> PillCheckState {
@@ -183,12 +183,12 @@ enum SeedData {
                         let n = doses.count
                         dose.status = n % 19 == 0 ? .missed : n % 17 == 0 ? .skipped : n % 13 == 0 ? .takenLate : .takenOnTime
                         dose.confirmedAt = dose.status == .missed ? nil : dose.scheduledAt.addingTimeInterval(dose.status == .takenLate ? 4200 : 120)
-                        dose.method = "synthetic-seed"
+                        dose.method = "sample"
                     }
                     doses.append(dose)
                 }
             }
         }
-        return PillCheckState(medications: meds, doses: doses, audit: [AuditEntry(type: "demo_created", at: now, reason: "Fictional profile and synthetic records only.")], practiceTime: PillTime.at(now, "08:00")!, lastGeneratedDay: PillTime.day(now))
+        return PillCheckState(medications: meds, doses: doses, audit: [AuditEntry(type: "demo_created", at: now, reason: "Sample medicines and history added.")], practiceTime: PillTime.at(now, "08:00")!, lastGeneratedDay: PillTime.day(now))
     }
 }

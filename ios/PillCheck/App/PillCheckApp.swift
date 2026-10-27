@@ -24,12 +24,13 @@ enum Theme {
 }
 
 struct PrimaryButtonStyle: ButtonStyle {
+    @Environment(\.isEnabled) private var isEnabled
     var secondary = false
     func makeBody(configuration: Configuration) -> some View {
         configuration.label.font(.headline).frame(maxWidth: .infinity, minHeight: 56)
             .foregroundStyle(secondary ? Theme.green : .white)
             .background(secondary ? Theme.sage : Theme.green, in: RoundedRectangle(cornerRadius: 17))
-            .opacity(configuration.isPressed ? 0.7 : 1)
+            .opacity(!isEnabled ? 0.45 : configuration.isPressed ? 0.7 : 1)
     }
 }
 extension View {
@@ -43,14 +44,6 @@ struct DisclaimerView: View {
         Label(PillCheckCopy.disclaimer, systemImage: "checkmark.shield")
             .font(.footnote).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
             .accessibilityLabel(PillCheckCopy.disclaimer)
-    }
-}
-struct DemoBadge: View {
-    var body: some View {
-        Label("FICTIONAL PROFILE", systemImage: "leaf")
-            .font(.caption2.weight(.semibold)).tracking(1)
-            .foregroundStyle(Theme.green).padding(.horizontal, 12).padding(.vertical, 7)
-            .background(Theme.sage, in: Capsule())
     }
 }
 struct WarningBox: View {
@@ -98,13 +91,12 @@ struct RootView: View {
 struct TodayView: View {
     @EnvironmentObject private var store: PillStore
     @State private var adding = false
-    @State private var lateIntro = false
     @State private var showReplan = false
     var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 22) {
-                    HStack { Text(store.now.formatted(.dateTime.weekday(.wide).month(.wide).day())).font(.subheadline).foregroundStyle(.secondary); Spacer(); DemoBadge() }
+                    Text(store.now.formatted(.dateTime.weekday(.wide).month(.wide).day())).font(.subheadline).foregroundStyle(.secondary)
                     Text("One day at a time.").font(.system(.largeTitle, design: .rounded, weight: .bold))
                     Text("A clear plan for your medicines.\nA little more peace of mind.").foregroundStyle(.secondary)
                     if let notice = store.notice {
@@ -130,11 +122,10 @@ struct TodayView: View {
                     let risks = MedicationEngine.activeRisks(store.state, now: store.now)
                     if !risks.isEmpty { ForEach(risks) { RiskFlagView(flag: $0) } }
                     VStack(alignment: .leading, spacing: 18) {
-                        Text("Explore with fictional records").font(.headline)
-                        Button { adding = true } label: { Label("Read a sample label", systemImage: "viewfinder") }.buttonStyle(PrimaryButtonStyle(secondary: true))
+                        Text("Manage your medicines").font(.headline)
+                        Button { adding = true } label: { Label("Add a medicine", systemImage: "plus") }.buttonStyle(PrimaryButtonStyle(secondary: true))
                         Button { store.openReminder() } label: { Label("Open reminder cards", systemImage: "speaker.wave.2") }.buttonStyle(PrimaryButtonStyle(secondary: true))
-                        Button { lateIntro = true } label: { Label("Explore a late dose", systemImage: "clock.arrow.2.circlepath") }.buttonStyle(PrimaryButtonStyle(secondary: true))
-                        Text(store.state.practiceClockEnabled ? "Practice clock: \(store.now.formatted(date: .omitted, time: .shortened)). Native reminders are off." : "Using your iPhone’s clock. Practice controls are in Preferences.").font(.footnote).foregroundStyle(.secondary)
+                        if store.state.practiceClockEnabled { Text("Reminder preview: \(store.now.formatted(date: .omitted, time: .shortened)). Notifications are paused. End the preview in Preferences.").font(.footnote).foregroundStyle(.secondary) }
                     }.card()
                     DisclaimerView()
                     Text(store.modelStatus).font(.caption).foregroundStyle(Theme.green)
@@ -144,11 +135,6 @@ struct TodayView: View {
                 .toolbar { ToolbarItem(placement: .topBarTrailing) { Button { adding = true } label: { Image(systemName: "plus") }.accessibilityLabel("Add medicine") } }
                 .sheet(isPresented: $adding) { IntakeView() }
                 .sheet(isPresented: $showReplan) { if let id = store.lateDoseID { ReplanView(doseID: id) } }
-                .confirmationDialog("Record the fictional 10 AM check-in?", isPresented: $lateIntro, titleVisibility: .visible) {
-                    Button("Record example & review timing") {
-                        do { try store.startLateExample(); showReplan = true } catch { store.error = error.localizedDescription }
-                    }
-                } message: { Text("This example records the 8 AM metformin as already taken at 10 AM. It enables the practice clock and turns off real reminders. Nothing is erased.") }
         }
     }
     private var nextCard: some View {

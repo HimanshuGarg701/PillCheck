@@ -54,7 +54,7 @@ export const samples = [
     doseQuantity: 1,
     doseUnit: "tablet",
     times: ["12:00"],
-    instructions: "Synthetic label for an interaction demo",
+    instructions: "Sample medicine label",
     caption: "See an interaction flag",
     color: "lavender",
   },
@@ -165,7 +165,7 @@ export function checkRisks(
       kind: "history",
       title: "Recorded medication-class concern",
       explanation:
-        "A problem with this medicine class is recorded in the demo history. Tell your doctor about this before you start it.",
+        "A problem with this medicine class is recorded in your history. Tell your doctor about this before you start it.",
     });
   return flags;
 }
@@ -285,7 +285,7 @@ export function validateReplan(
       when - last < med.minSpacingHours * 3600000
     )
       throw new Error(
-        "The proposed times do not meet the synthetic spacing constraints.",
+        "The proposed times do not meet the sample timing interval.",
       );
     last = when;
   }
@@ -406,7 +406,7 @@ export function makeSeed(now = new Date()) {
     demo: true,
     day,
     demoTime: atTime(day, "08:00"),
-    patient: "Alex Morgan (fictional)",
+    patient: "Alex Morgan",
     medications,
     doses,
     changes: [],
@@ -417,7 +417,7 @@ export function makeSeed(now = new Date()) {
         id: uid(),
         type: "demo_created",
         at: new Date(now).toISOString(),
-        reason: "Synthetic demonstration data; no real patient records.",
+        reason: "Sample medicines and history added.",
       },
     ],
     language: "en-US",

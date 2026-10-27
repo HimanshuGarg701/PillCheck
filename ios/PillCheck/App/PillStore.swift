@@ -107,7 +107,7 @@ final class PillStore: ObservableObject {
         }
     }
     func spoken(_ med: Medication) async throws -> String {
-        let key = "\(med.name)|\(med.doseQuantity)|\(med.doseUnit)|\(state.language)"
+        let key = "reminder-v2|\(med.name)|\(med.doseQuantity)|\(med.doseUnit)|\(state.language)"
         if let cached = state.spokenCache[key] { return cached }
         let text = try await meta.reminder(medication: med, language: state.language)
         try change { $0.spokenCache[key] = text }
@@ -135,14 +135,14 @@ final class PillStore: ObservableObject {
         let day = PillTime.day(now)
         guard let dose = today.first(where: { $0.medicationId == "med-metformin" && $0.originalScheduledAt == PillTime.at(day, "08:00") && $0.status.canRecord }) else {
             if let dose = today.first(where: { $0.medicationId == "med-metformin" && $0.status == .takenLate }) { lateDoseID = dose.id; return }
-            throw PillCheckError("The morning example is already recorded. Its history will not be reset.")
+            throw PillCheckError("The sample morning check-in is already recorded. Its history is preserved.")
         }
         let at = PillTime.at(day, "10:00")!
         try change {
             $0.practiceClockEnabled = true
             $0.practiceTime = at
             $0.remindersEnabled = false
-            try MedicationEngine.confirm([dose.id], state: &$0, at: at, method: "button", reason: "Fictional late-dose example")
+            try MedicationEngine.confirm([dose.id], state: &$0, at: at, method: "button", reason: "Sample late check-in")
         }
         lateDoseID = dose.id
     }
@@ -159,7 +159,7 @@ final class PillStore: ObservableObject {
     func setReminders(_ enabled: Bool) async {
         do {
             if enabled {
-                guard !state.practiceClockEnabled else { throw PillCheckError("Switch off the practice clock before scheduling real iPhone reminders.") }
+                guard !state.practiceClockEnabled else { throw PillCheckError("End the reminder preview before enabling notifications.") }
                 guard try await notifications.requestPermission() else { throw PillCheckError("Notifications were not allowed. You can change this in iPhone Settings.") }
             }
             try change { $0.remindersEnabled = enabled }

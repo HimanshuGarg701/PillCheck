@@ -56,7 +56,7 @@ struct MedicinesView: View {
                         VStack(alignment: .leading, spacing: 8) {
                             Text("\(med.name) · \(PillTime.number(med.strengthMg)) mg").font(.headline)
                             Text("\(med.startDate.formatted(date: .abbreviated, time: .omitted)) – \(med.endDate?.formatted(date: .abbreviated, time: .omitted) ?? "—")")
-                            Text(med.archiveReason ?? "Archived").foregroundStyle(.secondary)
+                            Text(PillCheckCopy.recordText(med.archiveReason ?? "Archived")).foregroundStyle(.secondary)
                         }.card()
                     }
                     DisclaimerView()
@@ -76,7 +76,7 @@ struct MedicinesView: View {
                         guard let med = archiving else { return }
                         do { try store.archive(med.id, reason: archiveReason); archiving = nil } catch { store.error = error.localizedDescription }
                     }
-                } message: { Text("Only record a change already made in the fictional care plan. This does not recommend stopping a medicine. History is preserved.") }
+                } message: { Text("Record a change already agreed with your prescriber. Earlier prescriptions and dose history will be preserved.") }
         }
     }
 }
@@ -97,7 +97,7 @@ struct HistoryView: View {
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 20) {
                     Text("Your record, over time.").font(.system(.largeTitle, design: .rounded, weight: .bold))
-                    Text("Thirty days of fictional history are included. New check-ins stay on this iPhone.").foregroundStyle(.secondary)
+                    Text("See your check-ins, prescription changes, and medication history in one place.").foregroundStyle(.secondary)
                     VStack(spacing: 16) {
                         DatePicker("From", selection: $from, displayedComponents: .date)
                         DatePicker("To", selection: $to, in: from..., displayedComponents: .date)
@@ -120,12 +120,12 @@ struct HistoryView: View {
                         VStack(alignment: .leading, spacing: 8) {
                             HStack { Text(store.medicine(dose.medicationId)?.name ?? "Earlier regimen").font(.headline); Spacer(); Text(dose.status.title).font(.caption.weight(.semibold)).foregroundStyle(dose.status.isTaken ? Theme.green : Theme.amber) }
                             Text(dose.scheduledAt.formatted(date: .abbreviated, time: .shortened)).font(.subheadline)
-                            if let confirmed = dose.confirmedAt { Text("Confirmed \(confirmed.formatted(date: .omitted, time: .shortened)) · \(dose.method ?? "button")").font(.subheadline).foregroundStyle(.secondary) }
-                            if let reason = dose.replanReason ?? dose.reason, !reason.isEmpty { Text(reason).font(.footnote).foregroundStyle(.secondary) }
+                            if let confirmed = dose.confirmedAt { Text("Confirmed \(confirmed.formatted(date: .omitted, time: .shortened)) · \(dose.methodTitle)").font(.subheadline).foregroundStyle(.secondary) }
+                            if let reason = dose.replanReason ?? dose.reason, !reason.isEmpty { Text(PillCheckCopy.recordText(reason)).font(.footnote).foregroundStyle(.secondary) }
                         }.card()
                     }
                     DisclosureGroup("Changes & acknowledgments (\(store.state.audit.count))") {
-                        ForEach(store.state.audit.reversed()) { entry in VStack(alignment: .leading, spacing: 6) { Text(entry.at.formatted()).font(.caption).foregroundStyle(.secondary); Text(entry.reason).font(.subheadline); Divider() }.padding(.vertical, 8) }
+                        ForEach(store.state.audit.reversed()) { entry in VStack(alignment: .leading, spacing: 6) { Text(entry.at.formatted()).font(.caption).foregroundStyle(.secondary); Text(PillCheckCopy.recordText(entry.reason)).font(.subheadline); Divider() }.padding(.vertical, 8) }
                     }.card()
                     DisclaimerView()
                 }.padding(20)

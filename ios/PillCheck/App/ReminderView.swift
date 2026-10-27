@@ -42,7 +42,7 @@ struct ReminderView: View {
                             else { error = "Review each card with Next. Say Done on the final card to confirm the whole group." }
                         }
                         Button("Record this dose as skipped") { skipping = true }.frame(minHeight: 56)
-                        Text("Done on the last card records all \(selection.doseIDs.count) medicine\(selection.doseIDs.count == 1 ? "" : "s") at the actual confirmation time\(store.state.practiceClockEnabled ? " shown by the practice clock" : "").").font(.footnote).foregroundStyle(.secondary).multilineTextAlignment(.center)
+                        Text("Done on the last card records all \(selection.doseIDs.count) medicine\(selection.doseIDs.count == 1 ? "" : "s") at the actual confirmation time\(store.state.practiceClockEnabled ? " shown in the reminder preview" : "").").font(.footnote).foregroundStyle(.secondary).multilineTextAlignment(.center)
                         DisclaimerView()
                     } else {
                         ContentUnavailableView("This dose is already recorded", systemImage: "checkmark.circle", description: Text("Your history is preserved."))
@@ -128,7 +128,7 @@ struct ReplanView: View {
                             Text("Quantity remains \(PillTime.number(med.doseQuantity)) \(med.doseUnit). The explanation and earlier time are saved in history.").foregroundStyle(.secondary)
                             Button("Read explanation aloud") { store.speech.speak(result.explanation, language: store.state.language) }.buttonStyle(PrimaryButtonStyle())
                         } else {
-                            WarningBox(text: "The 10-hour spacing belongs only to this fictional example. It is not a clinical rule or advice to take, skip, or stop a medicine.")
+                            WarningBox(text: "This sample uses a 10-hour interval to preview timing changes. It is not a clinical dosing rule. Confirm schedule changes with your pharmacist.")
                             Button {
                                 Task { do { result = try await store.replan(doseID) } catch { self.error = error.localizedDescription } }
                             } label: {

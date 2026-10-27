@@ -44,6 +44,49 @@ struct MedicineDraft: Identifiable, Equatable {
     }
 }
 
+struct SampleMedicineLabel: Identifiable {
+    let id: String
+    let name: String
+    let ingredient: String
+    let strength: String
+    let times: String
+    let instructions: String
+    static let all = [
+        SampleMedicineLabel(id: "metformin", name: "Metformin", ingredient: "Metformin hydrochloride", strength: "500 mg", times: "08:00 and 18:00", instructions: "Take with meals."),
+        SampleMedicineLabel(id: "glucophage", name: "Glucophage", ingredient: "Metformin hydrochloride", strength: "500 mg", times: "08:00 and 18:00", instructions: "Take with meals."),
+        SampleMedicineLabel(id: "cimetidine", name: "Cimetidine", ingredient: "Cimetidine", strength: "200 mg", times: "12:00", instructions: "")
+    ]
+    @MainActor var image: UIImage? {
+        let renderer = ImageRenderer(content: SampleLabelCard(label: self))
+        renderer.scale = 2
+        return renderer.uiImage
+    }
+}
+
+private struct SampleLabelCard: View {
+    let label: SampleMedicineLabel
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack {
+                Text("PillCheck").font(.system(size: 24, weight: .bold))
+                Spacer()
+                Text("SAMPLE LABEL").font(.system(size: 12, weight: .semibold)).tracking(1)
+            }.foregroundStyle(.white).padding(24).background(Theme.green)
+            VStack(alignment: .leading, spacing: 16) {
+                Text("Alex Morgan").font(.system(size: 15)).foregroundStyle(.secondary)
+                Text(label.name).font(.system(size: 36, weight: .bold))
+                Text("\(label.ingredient) · \(label.strength)").font(.system(size: 19))
+                Divider()
+                Text("Take 1 tablet at \(label.times).").font(.system(size: 23, weight: .semibold))
+                if !label.instructions.isEmpty { Text(label.instructions).font(.system(size: 18)) }
+                Spacer(minLength: 0)
+                Text("Sample medicine details for exploring label scanning.").font(.system(size: 12)).foregroundStyle(.secondary)
+            }.padding(24)
+        }.frame(width: 600, height: 400).foregroundStyle(Theme.ink).background(.white)
+            .environment(\.colorScheme, .light).environment(\.dynamicTypeSize, .medium)
+    }
+}
+
 struct IntakeView: View {
     @EnvironmentObject private var store: PillStore
     @Environment(\.dismiss) private var dismiss
@@ -56,27 +99,12 @@ struct IntakeView: View {
     @State private var busy = false
     @State private var error: String?
     @State private var draft: MedicineDraft?
-    private let samples = [("metformin", "Metformin", "Read a label"), ("glucophage", "Glucophage", "Find a duplicate ingredient"), ("cimetidine", "Cimetidine", "See a reference interaction")]
     var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
                     Text("Start with a label.").font(.system(.largeTitle, design: .rounded, weight: .bold))
-                    Text("Use a synthetic label. Review every field before it joins your schedule.").foregroundStyle(.secondary)
-                    Text("Try a sample label").font(.title2.bold())
-                    ForEach(samples, id: \.0) { sample in
-                        Button {
-                            guard let url = Bundle.main.url(forResource: sample.0, withExtension: "png"), let data = try? Data(contentsOf: url) else { error = "This sample image could not be opened."; return }
-                            imageData = data
-                            Task { await readImage(data) }
-                        } label: {
-                            HStack(spacing: 16) {
-                                Image(uiImage: UIImage(named: sample.0 + ".png") ?? UIImage()).resizable().scaledToFit().frame(width: 88, height: 72).background(.white)
-                                VStack(alignment: .leading, spacing: 5) { Text(sample.1).font(.headline); Text(sample.2).font(.subheadline).foregroundStyle(.secondary) }
-                                Spacer(); Image(systemName: "chevron.right")
-                            }.card()
-                        }.buttonStyle(.plain).disabled(busy).accessibilityLabel("Scan sample \(sample.1)")
-                    }
+                    Text("Scan a label or enter your medicine details. Review every field before saving.").foregroundStyle(.secondary)
                     if busy { HStack { ProgressView(); Text("Muse Spark 1.3 is reading the label…") }.font(.subheadline).card(Theme.sage) }
                     if let error { WarningBox(text: error + " No medicine has been added. Your selected image and text are retained.") }
                     if let imageData, let image = UIImage(data: imageData) { Image(uiImage: image).resizable().scaledToFit().frame(maxHeight: 180).clipShape(RoundedRectangle(cornerRadius: 12)) }
@@ -86,13 +114,30 @@ struct IntakeView: View {
                         Button { Task { await openCamera() } } label: { Label("Photograph a label", systemImage: "camera") }.buttonStyle(PrimaryButtonStyle(secondary: true))
                     }
                     if let cameraPermissionMessage { WarningBox(text: cameraPermissionMessage) }
+                    Button("Enter medicine manually") { draft = MedicineDraft(startDate: store.now) }.buttonStyle(PrimaryButtonStyle()).disabled(busy)
                     VStack(alignment: .leading, spacing: 12) {
                         Text("Or paste label text").font(.headline)
                         TextEditor(text: $labelText).frame(minHeight: 120).padding(8).background(.white, in: RoundedRectangle(cornerRadius: 12)).accessibilityLabel("Label text")
-                        Button("Read text with Meta") { Task { await readText() } }.buttonStyle(PrimaryButtonStyle(secondary: true)).disabled(busy || labelText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                        Button("Read label text") { Task { await readText() } }.buttonStyle(PrimaryButtonStyle(secondary: true)).disabled(busy || labelText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                     }.card()
-                    Button("Enter medicine manually") { draft = MedicineDraft(startDate: store.now) }.buttonStyle(PrimaryButtonStyle()).disabled(busy)
-                    Text("Only the selected label is sent to Meta for extraction. The API key stays on the server.").font(.footnote).foregroundStyle(.secondary)
+                    DisclosureGroup("Try a sample label") {
+                        VStack(spacing: 14) {
+                            ForEach(SampleMedicineLabel.all) { sample in
+                                Button {
+                                    guard let data = sample.image?.pngData() else { error = "This sample label could not be opened."; return }
+                                    imageData = data
+                                    Task { await readImage(data) }
+                                } label: {
+                                    HStack(spacing: 16) {
+                                        Image(systemName: "doc.text.viewfinder").font(.title2).foregroundStyle(Theme.green)
+                                        VStack(alignment: .leading, spacing: 5) { Text(sample.name).font(.headline); Text(sample.ingredient).font(.subheadline).foregroundStyle(.secondary) }
+                                        Spacer(); Image(systemName: "chevron.right")
+                                    }.padding(.vertical, 10)
+                                }.buttonStyle(.plain).disabled(busy).accessibilityLabel("Scan sample \(sample.name)")
+                            }
+                        }.padding(.top, 10)
+                    }.card()
+                    Text("The selected label is sent securely to Meta to read the medicine details. You review the results before saving.").font(.footnote).foregroundStyle(.secondary)
                     DisclaimerView()
                 }.padding(20)
             }.background(Theme.cream).navigationTitle("Add medicine").navigationBarTitleDisplayMode(.inline)
@@ -197,7 +242,7 @@ struct MedicineEditor: View {
                     Text("Recognized high-risk medicines are protected even if this switch is off. This form records a prescription; it does not choose a dose.").font(.footnote).foregroundStyle(.secondary)
                 }
                 Section {
-                    Toggle("I checked every field against the synthetic prescription", isOn: $reviewed)
+                    Toggle("I checked every field against my prescription", isOn: $reviewed)
                     if let error { Text(error).foregroundStyle(.red).accessibilityAddTraits(.isStaticText) }
                     Text("Medicine names are checked with U.S. reference services. Medicine details and reference excerpts go to Meta; your name and dose history are not sent.").font(.footnote).foregroundStyle(.secondary)
                     Button { Task { await check() } } label: {

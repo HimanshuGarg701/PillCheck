@@ -25,9 +25,10 @@ enum HistoryPDF {
             }
             newPage()
             text("Medication history", size: 24, bold: true)
-            text(state.patient, size: 15, bold: true)
+            text(state.patientDisplayName, size: 15, bold: true)
             text("Generated \(Date().formatted(date: .complete, time: .shortened))")
-            text("Period: \(from.formatted(date: .abbreviated, time: .omitted)) – \(to.formatted(date: .abbreviated, time: .omitted)). All records in this app are synthetic.")
+            text("Period: \(from.formatted(date: .abbreviated, time: .omitted)) – \(to.formatted(date: .abbreviated, time: .omitted)).")
+            if doses.contains(where: { $0.isSampleEntry }) { text("Includes sample history. Sample entries are identified in the dose record.") }
             text("Medicines and earlier regimens", size: 17, bold: true)
             for med in state.medications {
                 if y > 620 { newPage() }
@@ -40,13 +41,13 @@ enum HistoryPDF {
                 if y > 640 { newPage() }
                 let med = state.medications.first { $0.id == dose.medicationId }
                 text("\(dose.scheduledAt.formatted(date: .abbreviated, time: .shortened)) · \(med?.name ?? "Archived medicine")", bold: true)
-                text("\(dose.status.title). \(med.map { PillTime.number($0.doseQuantity) + " " + $0.doseUnit } ?? "") · Confirmed: \(dose.confirmedAt.map { $0.formatted(date: .abbreviated, time: .shortened) } ?? "Not recorded") · Method: \(dose.method ?? "—")")
-                if let reason = dose.replanReason ?? dose.reason, !reason.isEmpty { text(reason) }
+                text("\(dose.status.title). \(med.map { PillTime.number($0.doseQuantity) + " " + $0.doseUnit } ?? "") · Confirmed: \(dose.confirmedAt.map { $0.formatted(date: .abbreviated, time: .shortened) } ?? "Not recorded") · Method: \(dose.methodTitle)")
+                if let reason = dose.replanReason ?? dose.reason, !reason.isEmpty { text(PillCheckCopy.recordText(reason)) }
             }
             if !state.changes.isEmpty {
                 text("Recorded timing changes", size: 17, bold: true)
                 for change in state.changes {
-                    text("\(change.oldTime.formatted()) → \(change.newTime.formatted()): \(change.reason)")
+                    text("\(change.oldTime.formatted()) → \(change.newTime.formatted()): \(PillCheckCopy.recordText(change.reason))")
                 }
             }
         }
