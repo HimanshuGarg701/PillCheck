@@ -109,6 +109,7 @@ struct PillCheckState: Codable, Equatable {
     var practiceTime: Date
     var lastGeneratedDay: Date
     var spokenCache: [String: String] = [:]
+    var medicationReviews: [MedicationAIReview]? = nil
 }
 
 struct ScanResult: Codable {
@@ -165,7 +166,12 @@ enum PillTime {
     static func number(_ value: Double) -> String { value.formatted(.number.precision(.fractionLength(0...3))) }
     static func encoder() -> JSONEncoder {
         let encoder = JSONEncoder()
-        encoder.dateEncodingStrategy = .iso8601
+        encoder.dateEncodingStrategy = .custom { date, encoder in
+            let formatter = ISO8601DateFormatter()
+            formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+            var container = encoder.singleValueContainer()
+            try container.encode(formatter.string(from: date))
+        }
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
         return encoder
     }

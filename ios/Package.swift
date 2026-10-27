@@ -7,7 +7,7 @@ let package = Package(
     products: [.library(name: "PillCheckCore", targets: ["PillCheckCore"])],
     targets: [
         .target(name: "PillCheckCore", path: "PillCheck/Core"),
-        .testTarget(name: "PillCheckCoreTests", dependencies: ["PillCheckCore"], path: "PillCheckCore/Tests/PillCheckCoreTests")
+        .testTarget(name: "PillCheckCoreTests", dependencies: ["PillCheckCore"], path: "PillCheckCore/Tests/PillCheckCoreTests", resources: [.copy("Fixtures")])
     ],
     swiftLanguageModes: [.v5]
 )

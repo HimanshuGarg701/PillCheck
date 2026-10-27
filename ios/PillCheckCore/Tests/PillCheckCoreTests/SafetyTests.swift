@@ -105,3 +105,26 @@ final class SafetyTests: XCTestCase {
         XCTAssertEqual(try PillTime.decoder().decode(PillCheckState.self, from: data), state)
     }
 }
+
+
+extension SafetyTests {
+    func testEarlierRecordsLoadWithoutAIReviewField() throws {
+        let state = SeedData.make(now: day)
+        var json = try JSONSerialization.jsonObject(with: PillTime.encoder().encode(state)) as! [String: Any]
+        json.removeValue(forKey: "medicationReviews")
+        let restored = try PillTime.decoder().decode(PillCheckState.self, from: JSONSerialization.data(withJSONObject: json))
+        XCTAssertEqual(restored, state)
+        XCTAssertNil(restored.medicationReviews)
+    }
+    func testServerReferenceOnlyReviewDecodesAndPersistsWithoutClaimingAICompletion() throws {
+        let url = Bundle.module.url(forResource: "review", withExtension: "json", subdirectory: "Fixtures")!
+        let review = try PillTime.decoder().decode(MedicationAIReview.self, from: Data(contentsOf: url))
+        XCTAssertFalse(review.completed)
+        XCTAssertEqual(review.source, "references_only")
+        XCTAssertTrue(review.pairs.contains { $0.ingredientFinding == "possible_duplicate" })
+        XCTAssertTrue(review.timing.proposedTimes.isEmpty)
+        var state = SeedData.make(now: day)
+        state.medicationReviews = [review]
+        XCTAssertEqual(try PillTime.decoder().decode(PillCheckState.self, from: PillTime.encoder().encode(state)), state)
+    }
+}

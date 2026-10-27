@@ -6,6 +6,8 @@ struct MedicinesView: View {
     @State private var edit: MedicineDraft?
     @State private var archiving: Medication?
     @State private var archiveReason = ""
+    @State private var reviewing: Medication?
+    @State private var savedReview: MedicationAIReview?
     var body: some View {
         NavigationStack {
             ScrollView {
@@ -22,6 +24,7 @@ struct MedicinesView: View {
                             LabeledContent("Daily ingredient", value: "\(PillTime.number(med.dailyMg)) mg")
                             Text(med.instructions).font(.subheadline)
                             if MedicationEngine.isHighRisk(med) { WarningBox(text: PillCheckCopy.pharmacist) }
+                            Button { reviewing = med } label: { Label("AI interactions & timing", systemImage: "sparkles") }.buttonStyle(PrimaryButtonStyle(secondary: true))
                             Button("Update record") { edit = MedicineDraft(medicine: med, now: store.now) }.buttonStyle(PrimaryButtonStyle(secondary: true))
                             Button("Archive regimen") { archiving = med; archiveReason = "" }.frame(minHeight: 44)
                         }.card()
@@ -34,6 +37,18 @@ struct MedicinesView: View {
                             Text("This demo covers one curated metformin/cimetidine pair. No flag does not mean a combination is safe. Ask a pharmacist to check all medicines and supplements.").font(.subheadline).foregroundStyle(.secondary)
                         }.card()
                     } else { ForEach(risks) { RiskFlagView(flag: $0) } }
+                    if let reviews = store.state.medicationReviews, !reviews.isEmpty {
+                        Text("Saved AI review snapshots").font(.title2.bold())
+                        Text("Historical reviews may no longer match your current list. Run a fresh check after any prescription change.").font(.subheadline).foregroundStyle(.secondary)
+                        ForEach(reviews.reversed()) { review in
+                            Button { savedReview = review } label: {
+                                VStack(alignment: .leading, spacing: 8) {
+                                    Text(review.candidateName).font(.headline)
+                                    Text("\(review.createdAt.formatted(date: .abbreviated, time: .shortened)) · \(review.completed ? "AI reviewed" : "AI incomplete")").font(.subheadline)
+                                }.card()
+                            }.buttonStyle(.plain)
+                        }
+                    }
                     Text("Earlier regimens & stopped medicines").font(.title2.bold())
                     let archived = store.state.medications.filter { $0.status == .stopped }
                     if archived.isEmpty { Text("Your archived records will appear here. They are never deleted.").foregroundStyle(.secondary) }
@@ -50,6 +65,10 @@ struct MedicinesView: View {
                 .toolbar { ToolbarItem(placement: .topBarTrailing) { Button { add = true } label: { Image(systemName: "plus") }.accessibilityLabel("Add medicine") } }
                 .sheet(isPresented: $add) { IntakeView() }
                 .sheet(item: $edit) { draft in MedicineEditor(draft: draft) }
+                .sheet(item: $reviewing) { med in MedicationAIReviewView(medication: med) }
+                .sheet(item: $savedReview) { review in
+                    NavigationStack { ScrollView { VStack(alignment: .leading, spacing: 20) { WarningBox(text: "Historical snapshot. Run a new review for the current medication list."); MedicationReviewContent(review: review) }.padding(20) }.background(Theme.cream).navigationTitle("Saved review").navigationBarTitleDisplayMode(.inline).toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { savedReview = nil } } } }
+                }
                 .alert("Archive this recorded regimen?", isPresented: Binding(get: { archiving != nil }, set: { if !$0 { archiving = nil } })) {
                     TextField("Reason", text: $archiveReason)
                     Button("Cancel", role: .cancel) { archiving = nil }

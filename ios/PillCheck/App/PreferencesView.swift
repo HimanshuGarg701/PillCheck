@@ -46,7 +46,7 @@ struct PreferencesView: View {
                         Task { do { connection = try await store.meta.checkConnection(); store.modelStatus = "Muse Spark 1.3 · live" } catch { connection = error.localizedDescription }; checking = false }
                     } label: { HStack { Text("Check live connection"); if checking { Spacer(); ProgressView() } } }.disabled(checking)
                     if let connection { Text(connection).font(.footnote).textSelection(.enabled) }
-                    Text("Label parsing, reminder text, and fictional timing proposals use the live model. Persistent provider errors are shown without fabricated results. The credential stays on the server.").font(.footnote).foregroundStyle(.secondary)
+                    Text("Label parsing, interaction and ingredient review, reminder text, and timing drafts use the live model. Persistent provider errors are shown without fabricated results. The credential stays on the server.").font(.footnote).foregroundStyle(.secondary)
                 }
                 Section("Your records") {
                     Button { shareRecords = true } label: { Label("Export all records (JSON)", systemImage: "square.and.arrow.up") }

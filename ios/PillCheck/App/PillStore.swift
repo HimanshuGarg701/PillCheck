@@ -85,13 +85,26 @@ final class PillStore: ObservableObject {
         }
         notice = skipped ? "Skipped dose recorded." : "Confirmation saved at \(at.formatted(date: .omitted, time: .shortened))."
     }
-    func save(_ medication: Medication, replacing id: String?, acknowledged: Bool) throws {
+    func save(_ medication: Medication, replacing id: String?, acknowledged: Bool, review: MedicationAIReview? = nil) throws {
         let at = now
-        try change { try MedicationEngine.save(medication, replacing: id, acknowledged: acknowledged, state: &$0, now: at) }
+        try change {
+            try MedicationEngine.save(medication, replacing: id, acknowledged: acknowledged, state: &$0, now: at)
+            if let review {
+                $0.medicationReviews = ($0.medicationReviews ?? []) + [review]
+                $0.audit.append(AuditEntry(type: "medication_ai_review", at: at, reason: "\(medication.name): AI review \(review.aiStatus). \(review.summary) No timing change was applied by this review.", source: review.source))
+            } else {
+                $0.audit.append(AuditEntry(type: "medication_ai_review_incomplete", at: at, reason: "\(medication.name): prescription saved with an explicitly acknowledged incomplete AI review."))
+            }
+        }
     }
     func archive(_ id: String, reason: String) throws {
         let at = now
         try change { try MedicationEngine.archive(id, state: &$0, now: at, reason: reason) }
+    }
+    func otherMedicines(for medication: Medication) -> [Medication] {
+        state.medications.filter { other in
+            other.id != medication.id && (other.status == .active || other.endDate.map { $0 <= now && now.timeIntervalSince($0) <= 30 * 86400 } == true)
+        }
     }
     func spoken(_ med: Medication) async throws -> String {
         let key = "\(med.name)|\(med.doseQuantity)|\(med.doseUnit)|\(state.language)"

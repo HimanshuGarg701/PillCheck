@@ -21,8 +21,8 @@ The app starts with Alex Morgan's fictional profile, three medicines, and 30 day
 ## Use the app
 
 - **Today:** review grouped reminder cards, then confirm the group on its final card. Confirmations record an already-taken dose at the current time. Skipped doses can include a reason.
-- **Add medicine:** use one of three bundled synthetic label images, import an image, paste label text, or enter fields manually. Review is mandatory. Recognized names can fill the active ingredient. Duplicate ingredients and known interaction flags require acknowledgment.
-- **Medicines:** inspect the regimen and reference flags. Updating or archiving a prescription preserves earlier medication versions, dose records, and the audit trail.
+- **Add medicine:** use one of three bundled synthetic label images, import an image, paste label text, or enter fields manually. Review is mandatory. Recognized names can fill the active ingredient. An AI review compares the new medicine with the active and recently stopped list, using U.S. RxNorm ingredient identities and retrieved label references. Review findings require acknowledgment.
+- **Medicines:** use **AI interactions & timing** to review a saved medicine against the rest of the list, inspect ingredient overlap and source-linked findings, and view historical review snapshots. Updating or archiving a prescription preserves earlier medication versions, dose records, and the audit trail.
 - **History:** filter dates and medicines, inspect adherence, and export a native PDF through the iOS share sheet.
 - **Preferences:** choose English, Spanish, or Hindi for speech; enable local notifications; export all records as JSON; or use the optional practice clock. Practice mode switches off real notifications.
 
@@ -53,6 +53,17 @@ pnpm build
 
 `MODEL_ID` defaults to `muse-spark-1.3`. Requests use Meta's `https://api.meta.ai/v1/responses` endpoint. Pushes to `main` deploy the backend through the existing Vercel integration.
 
+
+## AI interactions, brand duplicates, and timing
+
+The fourth Meta operation, `review`, checks a candidate against every supplied active or recently stopped medicine (up to 20, without silent truncation). It looks for ingredient overlap under different brands and potential interactions. NLM RxNorm supplies ingredient identities, including ingredients within combination products. Label references come from openFDA and link to DailyMed. Unknown brands, ingredient mismatches, missing labels, and shortened excerpts remain visible limitations.
+
+The model must return a finding for every comparison and cite actual supplied passages for interaction claims. The server rejects invented citations, erased deterministic warnings, safety guarantees, and unsupported timing drafts. A failed Meta call returns **AI review incomplete**, alongside clearly distinguished reference-only findings. Recording an existing prescription remains possible after explicit acknowledgment; it is not safety approval.
+
+For scheduling, the AI may propose a **draft for pharmacist review** only when the server has an explicit spacing rule and the validator accepts it. Initial validated coverage is **oral levothyroxine / calcium carbonate, at least four hours apart**, based on [DailyMed prescribing information](https://dailymed.nlm.nih.gov/dailymed/drugInfo.cfm?setid=52a07ade-4098-477d-874e-dd692667041e). The first implementation limits drafts to a once-daily candidate, keeps all other times and dose amounts fixed, checks separation across midnight, and blocks drafts with duplicates, high-risk medicines, missing reference coverage, or unresolved other interactions. Drafts can be shared for review and never automatically alter the prescription. Meal instructions, formulation, clinical monitoring, and interactions that cannot be solved by spacing still need pharmacist review.
+
+Names are sent to U.S. reference services; medication details and relevant reference excerpts are sent through the backend to Meta. The patient's name and dose history are excluded. Reviews saved with a prescription are retained as dated snapshots and must be rerun after medication changes. FDA explicitly says [not to rely on openFDA for medical-care decisions](https://open.fda.gov/apis/drug/label/).
+
 ## Native verification
 
 ```sh
@@ -64,4 +75,4 @@ xcodebuild -project ios/PillCheck.xcodeproj -scheme PillCheck \
 
 The core test suite covers duplicate totals, high-risk protection, atomic confirmation, timing validation, history-preserving regimen changes, date rollover, notification cadence/cancellation, and persistent record round trips. The backend suite checks request validation, Meta integration, errors, and matching safety boundaries.
 
-This is a synthetic-data prototype. The interaction reference set contains one curated metformin/cimetidine pair, not a comprehensive clinical database. No flag establishes safety. The app has no account, cloud history sync, caregiver escalation, or travel-time-zone workflow. Submission, distribution, and video work are outside the current iOS scope.
+This is a synthetic-data prototype. Offline interaction flags cover a curated metformin/cimetidine pair. The new AI review examines retrieved U.S. ingredient label excerpts for other pairs, but this is not a comprehensive clinical interaction database. No flag establishes safety. The app has no account, cloud history sync, caregiver escalation, or travel-time-zone workflow. Submission, distribution, and video work are outside the current iOS scope.

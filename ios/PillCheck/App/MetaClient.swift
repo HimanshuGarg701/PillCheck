@@ -8,7 +8,7 @@ struct MetaClient {
     private func post<T: Decodable>(_ body: [String: Any], as type: T.Type) async throws -> T {
         var request = URLRequest(url: endpoint)
         request.httpMethod = "POST"
-        request.timeoutInterval = 35
+        request.timeoutInterval = 60
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.httpBody = try JSONSerialization.data(withJSONObject: body)
         let (data, response) = try await URLSession.shared.data(for: request)
@@ -39,6 +39,10 @@ struct MetaClient {
     func replan(medication: Medication, dose: DoseEvent, future: [DoseEvent], language: String) async throws -> ReplanProposal {
         func json<T: Encodable>(_ value: T) throws -> Any { try JSONSerialization.jsonObject(with: PillTime.encoder().encode(value)) }
         return try await post(["task": "replan", "medication": try json(medication), "confirmed": try json(dose), "future": try json(future), "timeZone": TimeZone.current.identifier, "language": language], as: ReplanProposal.self)
+    }
+    func review(candidate: Medication, medications: [Medication]) async throws -> MedicationAIReview {
+        func json<T: Encodable>(_ value: T) throws -> Any { try JSONSerialization.jsonObject(with: PillTime.encoder().encode(value)) }
+        return try await post(["task": "review", "candidate": try json(candidate), "medications": try json(medications)], as: MedicationAIReview.self)
     }
     func checkConnection() async throws -> String {
         struct Result: Decodable { let message: String; let model: String }

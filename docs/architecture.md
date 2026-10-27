@@ -22,7 +22,7 @@ Already-scheduled local notifications do not require a running application or ne
 
 ## Meta API
 
-`POST /api/ai` supports scan, speak, replan, and connection operations. Native URLSession requests omit browser Origin headers. The server retains browser same-origin checks when an Origin is provided, plus payload bounds, a per-instance burst limit, structured response schemas, a timeout, and sanitized errors. These are not distributed spending controls.
+`POST /api/ai` supports scan, speak, replan, review, and connection operations. Native URLSession requests omit browser Origin headers. The server retains browser same-origin checks when an Origin is provided, plus payload bounds, a per-instance burst limit, structured response schemas, a timeout, and sanitized errors. These are not distributed spending controls.
 
 The Vercel-only credential calls Muse Spark 1.3 through Meta's Responses endpoint. Selected label images are resized locally and submitted as image input, never replaced with fixture text. Missing fields remain uncertain and require review. Failed requests do not create medicines or change schedules. Reminder text is cached locally by exact medicine, quantity, unit, and language for offline playback.
 
@@ -30,13 +30,21 @@ Timing proposals are limited to the explicitly seeded fictional metformin scenar
 
 The JavaScript server shares `shared/domain.js` with backend tests. Swift implements the matching client rules independently with its own tests. Neither validator relies on a model to determine arithmetic or accept schedule mutations.
 
+## Medication review
+
+`server/medication-review.mjs` validates a limited medicine-only input, resolves names with RxNorm, retrieves oral ingredient label references from openFDA, and builds the evidence supplied to Meta. Server-generated source IDs and URLs cannot be supplied by the client. The model must cover every pair and use exact supplied quotes for substantive interaction findings. Validation prevents the model from erasing reference flags or inventing sources. Resolution and retrieval failures are uncertainty, not a negative interaction check. Sources disclose ingredient-only matching and excerpt truncation.
+
+The shared reference deadline is 12 seconds, duplicate lookups are coalesced within a request, and successful name-to-ingredient identities are cached for one day. The Meta call retains its bounded timeout and retries. The review route can return reference-only findings with `aiStatus: unavailable`; that is never labeled live AI success. The native client allows 60 seconds, matching the Vercel function limit.
+
+Timing drafts are limited to the reviewed levothyroxine/calcium rule and a once-daily candidate. Validation checks all existing times using circular 24-hour distance, rejects duplicate/high-risk/uncertain combinations, and leaves quantities and existing medication times unchanged. Drafts are preview/share only; they do not write dose schedules. A medication edit invalidates the review, and a medication-list change prevents saving with an old review. Optional `medicationReviews` preserves backwards decoding compatibility. Saved snapshots remain historical and do not silently become current-list safety clearance.
+
 ## Retired browser client
 
 The root HTML is a small migration notice. `/sw.js` replaces the prior PWA worker, removes PillCheck caches, unsubscribes legacy Web Push, and unregisters itself. Browser localStorage is preserved. Old browser code and push scheduling endpoints are removed; their history is recoverable in Git. Native records are independent of old browser records.
 
 ## Boundaries
 
-- Synthetic records only; one curated interaction pair and limited name/class matching.
+- Synthetic records only; one offline interaction pair, live U.S. label-excerpt review, and limited name/class matching. These do not form a comprehensive clinical interaction database.
 - No cloud record sync, account recovery, caregiver escalation, or travel-time-zone management.
 - Native UI is English; spoken reminders and explanations support English, Spanish, and Hindi, subject to available voices/on-device recognition.
 - A 60-alert queue provides a visible finite coverage horizon, not indefinite offline operation.

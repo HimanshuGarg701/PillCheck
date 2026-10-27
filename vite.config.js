@@ -8,6 +8,6 @@ export default defineConfig({
   nitro: {
     serverDir: "./server",
     preset: process.env.VERCEL ? "vercel" : undefined,
-    vercel: { functions: { maxDuration: 30 } },
+    vercel: { functions: { maxDuration: 60 } },
   },
 });
