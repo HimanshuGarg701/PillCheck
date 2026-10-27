@@ -29,12 +29,12 @@ struct MedicinesView: View {
                             Button("Archive regimen") { archiving = med; archiveReason = "" }.frame(minHeight: 44)
                         }.card()
                     }
-                    Text("Reference checks").font(.title2.bold())
+                    Text("Offline reference checks").font(.title2.bold())
                     let risks = MedicationEngine.activeRisks(store.state, now: store.now)
                     if risks.isEmpty {
                         VStack(alignment: .leading, spacing: 12) {
                             Text("No known interaction found in this reference set.").font(.headline)
-                            Text("This demo covers one curated metformin/cimetidine pair. No flag does not mean a combination is safe. Ask a pharmacist to check all medicines and supplements.").font(.subheadline).foregroundStyle(.secondary)
+                            Text("The offline reference set covers one curated metformin/cimetidine pair. Use AI interactions & timing above for a review of retrieved U.S. references. No flag does not mean a combination is safe.").font(.subheadline).foregroundStyle(.secondary)
                         }.card()
                     } else { ForEach(risks) { RiskFlagView(flag: $0) } }
                     if let reviews = store.state.medicationReviews, !reviews.isEmpty {

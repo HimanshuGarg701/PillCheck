@@ -26,7 +26,7 @@ The app starts with Alex Morgan's fictional profile, three medicines, and 30 day
 - **History:** filter dates and medicines, inspect adherence, and export a native PDF through the iOS share sheet.
 - **Preferences:** choose English, Spanish, or Hindi for speech; enable local notifications; export all records as JSON; or use the optional practice clock. Practice mode switches off real notifications.
 
-Only the seeded metformin scenario permits a model-generated timing proposal. Its 10-hour spacing is a fictional fixture, not clinical guidance. High-risk medicines and other regimens require pharmacist review. Quantities never change through replanning.
+The late-dose replan workflow is limited to the seeded metformin scenario. Its 10-hour spacing is a fictional fixture, not clinical guidance. The separate AI medication review can offer a pharmacist-review timing draft for the supported label-spacing rule described below. Quantities never change through either workflow.
 
 ## Local reminders
 
@@ -40,7 +40,7 @@ The owner approved **Muse Spark 1.3 through Meta Model API**. The app sends sele
 
 The previous browser application has been retired. The Vercel root now identifies the iOS backend, and the retirement service worker removes the previous PWA cache and push subscription without erasing browser records. The earlier implementation remains available in Git history at `07551df`.
 
-Meta has returned intermittent `404: model_not_found` responses for this approved model. Native verification on October 27 also encountered this error. The latest deployed connection diagnostic reported that this model was not listed for the configured server key, despite appearing in the account model catalog; the key’s project/model access needs resolution. The server retries within a bounded timeout, then reports failure. No model result is fabricated; manual entry and local medication workflows remain available.
+A live Muse Spark 1.3 medication review completed successfully in the iOS Simulator on October 27, 2026, identifying the shared metformin ingredient in Glucophage and displaying cited findings. Earlier scan, speech, and connection checks encountered `404: model_not_found`; those individual workflows have not been reverified successfully. The server retries provider failures within a bounded timeout, then reports an incomplete review without fabricating a model result. Manual entry and local medication workflows remain available.
 
 For backend development, use Node 22 or newer and pnpm. Copy `.env.example` to `.env.local` and supply your own server credential. Never commit it.
 

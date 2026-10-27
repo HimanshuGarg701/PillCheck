@@ -6,7 +6,7 @@ The original 12-page `pillcheck-requirements-garg.pdf` was reread for the native
 
 | Requirement | Native implementation | Verification / limits |
 | --- | --- | --- |
-| FR-01 / FR-01A | Actual image or pasted-label extraction through Meta; three bundled synthetic labels; uncertain-field review; manual fallback | Native request/error handling checked. Provider returned `model_not_found` during iOS image and spoken-reminder checks; live success is not claimed for this run. |
+| FR-01 / FR-01A | Actual image or pasted-label extraction through Meta; three bundled synthetic labels; uncertain-field review; manual fallback | Native request/error handling checked. Provider returned `model_not_found` during iOS image and spoken-reminder checks; live success for those operations has not yet been reverified. |
 | FR-02 | Manual review form, known-name ingredient suggestions, persistent field labels, no medical-name autocorrect | Native manual entry and duplicate acknowledgment checked. |
 | FR-03 | Chronological Today schedule; append-only regimen versions and completed history | Core tests cover new future events without backfilling earlier times. |
 | FR-04 | Reference flags at intake and on the active schedule | Offline curated metformin/cimetidine flag plus AI pairwise review of retrieved U.S. label excerpts. Sources, unresolved identities, and incomplete checks are explicit; no “safe” outcome. |
@@ -32,8 +32,8 @@ The brief does not supply a validated clinical interaction or spacing database. 
 - Native builds passed for both iPhone Simulator (Debug) and generic physical iOS (Release, unsigned), using Xcode 26.0.1; deployment target iOS 17.
 - Simulator: launch, grouped reminders, confirmation persistence across app update/relaunch, ingredient suggestion, required review, duplicate warning/acknowledgment, history, regimen versioning/archive, and PDF share sheet checked.
 - Simulator testing found, corrected, and rechecked medical-name autocorrect and a blank PDF share-sheet state bug.
-- Meta requests: provider returned `404: model_not_found`; the app retained the image/input and saved records and showed actionable errors. Do not treat mocked automated API tests as live model verification.
-- Deployment verified: public GitHub main and Vercel production include the native migration; the web root serves only the iOS backend notice. The API remains configured with Muse Spark 1.3. Its latest connection diagnostic reports the model is not listed for the server key, so project/model access remains an external blocker.
+- Meta requests: earlier scan and speech checks returned `404: model_not_found`; their inputs and saved records were preserved. A subsequent live medication review completed with Muse Spark 1.3 in the iOS Simulator, identified the Glucophage/metformin overlap, displayed citations, and preserved uncertain interaction findings. Mocked API tests are separate from this live verification.
+- Deployment verified: public GitHub main and Vercel production include the native migration; the web root serves only the iOS backend notice. The API remains configured with Muse Spark 1.3. The medication review endpoint completed successfully after earlier model-access failures; earlier scan/speech outcomes remain recorded separately.
 - Still pending: physical signing/install, local alert delivery offline and after a physical restart, voice permissions/recognition, camera capture, and extended accessibility checks.
 
 The current app can be run locally in Xcode without distributing it. No submission or video work is part of this migration.
@@ -45,4 +45,6 @@ The owner requested AI checks for interactions with the existing list, potential
 
 The first timing-rule coverage is the label-supported four-hour oral levothyroxine/calcium separation. Draft generation is restricted to a once-daily candidate, validated across midnight, and presented for pharmacist review without changing prescriptions. This does not solve every interaction or guarantee an absence of harm. Other unsupported timing conflicts remain pharmacist-review cases.
 
-New tests reject omitted pairs, invented citations, downgraded duplicates, safety guarantees, unsupported timing proposals, and inadequate separation. They distinguish missing references and unavailable AI from completed checks and verify that older iOS records still decode with optional review snapshots. Live AI conclusions still depend on resolving the existing Muse Spark key-access problem.
+New tests reject omitted pairs, invented citations, downgraded duplicates, safety guarantees, unsupported timing proposals, and inadequate separation. They distinguish missing references and unavailable AI from completed checks and verify that older iOS records still decode with optional review snapshots. The live native review completed with Muse Spark 1.3; the ingredient-overlap result and its source links were inspected in the Simulator. Salt forms related through RxNorm are displayed as reference alternatives, not a confirmed package formulation.
+
+A live production timing review also completed with Muse Spark 1.3 using two synthetic records initially set to 08:00. It flagged the levothyroxine/calcium spacing conflict and returned a 12:00 candidate draft that passed the four-hour validator while preserving the other medicine time. This was an endpoint test; it did not update any user prescription or Simulator record.

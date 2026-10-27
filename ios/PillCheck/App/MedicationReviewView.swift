@@ -14,7 +14,7 @@ struct MedicationReviewContent: View {
                 VStack(alignment: .leading, spacing: 8) {
                     Text(identity.name).font(.headline)
                     Text(identity.status == "matched" ? identity.ingredients.joined(separator: " + ") : "Ingredient identity not resolved in the U.S. reference.")
-                    if !identity.preciseIngredients.isEmpty { Text("Salt / precise ingredient: " + identity.preciseIngredients.joined(separator: " + ")).font(.subheadline).foregroundStyle(.secondary) }
+                    if !identity.preciseIngredients.isEmpty { Text("Related salt forms in RxNorm: " + identity.preciseIngredients.joined(separator: "; ") + ". Check the package for its exact form.").font(.subheadline).foregroundStyle(.secondary) }
                     if let source = identity.sourceURL, let url = URL(string: source) { Link("NLM RxNorm source", destination: url).font(.footnote) }
                 }.card(Theme.sage)
             }

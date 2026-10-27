@@ -310,7 +310,7 @@ export async function prepareReview(body, { fetchImpl = fetch } = {}) {
           medicationIds: [item.resolved.medicationId],
           title: `${item.resolved.name} — RxNorm ingredient identity`,
           url: item.resolved.sourceURL,
-          text: `${item.resolved.name}: active ingredients ${item.resolved.ingredients.join(", ")}. Precise ingredients: ${item.resolved.preciseIngredients.join(", ") || "not listed"}.`,
+          text: `${item.resolved.name}: active ingredients ${item.resolved.ingredients.join(", ")}. Related precise ingredient / salt forms in RxNorm: ${item.resolved.preciseIngredients.join(", ") || "not listed"}. These may be alternatives across products; the exact package formulation has not been established.`,
           truncated: false,
           note: "Ingredient identity is not proof of dose, formulation, release characteristics, or clinical interchangeability.",
         });
