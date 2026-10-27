@@ -40,7 +40,7 @@ The owner approved **Muse Spark 1.3 through Meta Model API**. The app sends sele
 
 The previous browser application has been retired. The Vercel root now identifies the iOS backend, and the retirement service worker removes the previous PWA cache and push subscription without erasing browser records. The earlier implementation remains available in Git history at `07551df`.
 
-Meta has returned intermittent `404: model_not_found` responses for this approved model. Native verification on October 27 also encountered this error. The server retries within a bounded timeout, then reports failure. No model result is fabricated; manual entry and local medication workflows remain available.
+Meta has returned intermittent `404: model_not_found` responses for this approved model. Native verification on October 27 also encountered this error. The latest deployed connection diagnostic reported that this model was not listed for the configured server key, despite appearing in the account model catalog; the key’s project/model access needs resolution. The server retries within a bounded timeout, then reports failure. No model result is fabricated; manual entry and local medication workflows remain available.
 
 For backend development, use Node 22 or newer and pnpm. Copy `.env.example` to `.env.local` and supply your own server credential. Never commit it.
 

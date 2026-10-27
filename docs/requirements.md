@@ -33,6 +33,7 @@ The brief does not supply a validated clinical interaction or spacing database. 
 - Simulator: launch, grouped reminders, confirmation persistence across app update/relaunch, ingredient suggestion, required review, duplicate warning/acknowledgment, history, regimen versioning/archive, and PDF share sheet checked.
 - Simulator testing found, corrected, and rechecked medical-name autocorrect and a blank PDF share-sheet state bug.
 - Meta requests: provider returned `404: model_not_found`; the app retained the image/input and saved records and showed actionable errors. Do not treat mocked automated API tests as live model verification.
+- Deployment verified: public GitHub main and Vercel production include the native migration; the web root serves only the iOS backend notice. The API remains configured with Muse Spark 1.3. Its latest connection diagnostic reports the model is not listed for the server key, so project/model access remains an external blocker.
 - Still pending: physical signing/install, local alert delivery offline and after a physical restart, voice permissions/recognition, camera capture, and extended accessibility checks.
 
 The current app can be run locally in Xcode without distributing it. No submission or video work is part of this migration.
