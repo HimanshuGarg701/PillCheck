@@ -1,4 +1,4 @@
-import { isHighRisk, PHARMACIST, validateReplan, localDay } from '../src/domain.js';
+import { isHighRisk, PHARMACIST, validateReplan, localDay, canonical } from '../src/domain.js';
 
 const object = properties => ({ type: 'object', properties, required: Object.keys(properties), additionalProperties: false });
 const str = { type: 'string' };
@@ -32,7 +32,7 @@ export function makeTask(body) {
     const { medication: med, confirmed, future } = body;
     if (!med || isHighRisk(med)) throw new RequestError(PHARMACIST, 422);
     if (!confirmed?.confirmedAt || !Number.isFinite(new Date(confirmed.confirmedAt).getTime()) || !Array.isArray(future) || future.length > 8 || !future.length) throw new RequestError('Missing schedule information.');
-    if (!med.demo || med.id !== 'med-metformin' || med.minSpacingHours !== 10) throw new RequestError('A pharmacist-approved timing plan is required for this medicine.', 422);
+    if (!med.demo || med.id !== 'med-metformin' || med.minSpacingHours !== 10 || canonical(med.ingredient) !== 'metformin' || med.strengthMg !== 500 || med.doseQuantity !== 1) throw new RequestError('A pharmacist-approved timing plan is required for this medicine.', 422);
     for (const d of future) if (typeof d.id !== 'string' || !Number.isFinite(new Date(d.scheduledAt).getTime()) || d.medicationId !== med.id || d.status !== 'pending') throw new RequestError('Invalid future schedule.');
     const timeZone = body.timeZone || 'UTC';
     try { new Intl.DateTimeFormat('en-US', {timeZone}).format(); } catch { throw new RequestError('Invalid time zone.'); }

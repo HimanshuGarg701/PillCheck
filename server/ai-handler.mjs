@@ -1,4 +1,4 @@
-import { runTask, RequestError } from '../server/meta.mjs';
+import { runTask, RequestError } from './meta.mjs';
 
 // Per-instance burst limiting. Production-wide quotas must also be configured at the provider/WAF.
 const calls = new Map();

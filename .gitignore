@@ -8,3 +8,9 @@ coverage/
 tmp/
 output/
 *.log
+
+.nitro
+.output
+.workflow-data
+.workflow
+/.swc

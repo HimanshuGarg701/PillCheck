@@ -3,7 +3,7 @@ export const PHARMACIST = "This medicine needs your pharmacist's advice. Call yo
 export const localDay = (date = new Date(), timeZone) => new Date(date).toLocaleDateString('en-CA', timeZone ? { timeZone } : undefined);
 export const atTime = (day, time) => new Date(`${day}T${time}:00`).toISOString();
 export const uid = () => globalThis.crypto.randomUUID();
-export const canonical = value => String(value || '').toLowerCase().trim().replace(/\s+/g, ' ');
+export const canonical = value => String(value || '').toLowerCase().trim().replace(/\s+/g, ' ').replace(/\s+(hydrochloride|hcl)$/, '');
 const HIGH_RISK = /insulin|warfarin|apixaban|rivaroxaban|dabigatran|edoxaban|heparin|enoxaparin|clopidogrel|carbidopa|levodopa|ropinirole|pramipexole|levetiracetam|phenytoin|carbamazepine|valpro|lamotrigine|tacrolimus|cyclosporine|mycophenolate|sirolimus|anticoagulant|antiplatelet|parkinson|seizure|transplant|blood thinner/i;
 export const isHighRisk = med => !!med.highRisk || HIGH_RISK.test(`${med.name} ${med.ingredient} ${med.riskClass || ''}`);
 export const samples = [
@@ -35,7 +35,7 @@ export function checkRisks(candidate, medications, problems = [], now = new Date
   const duplicates = active.filter(m => canonical(m.ingredient) === canonical(candidate.ingredient));
   if (duplicates.length) flags.push({ kind: 'duplicate', title: 'Same ingredient, different label', medications: duplicates.map(m => m.id), combinedMg: dailyMg(candidate) + duplicates.reduce((sum,m) => sum + dailyMg(m), 0), explanation: `This has the same active ingredient as ${duplicates.map(m => m.name).join(', ')}. Taking both can double your daily dose. Check with your doctor before starting this.` });
   for (const other of medications.filter(m => m.id !== candidate.id)) {
-    const recent = other.status === 'stopped' && other.endDate && Math.abs(new Date(now) - new Date(other.endDate)) <= 30 * 86400000;
+    const recent = other.status === 'stopped' && other.endDate && new Date(now) >= new Date(other.endDate) && new Date(now) - new Date(other.endDate) <= 30 * 86400000;
     if (other.status !== 'active' && !recent) continue;
     const reference = interactionReferences.find(r => r.ingredients.includes(canonical(candidate.ingredient)) && r.ingredients.includes(canonical(other.ingredient)) && canonical(candidate.ingredient) !== canonical(other.ingredient));
     if (reference) flags.push({ kind: 'interaction', title: `${candidate.name} + ${other.name}`, medications: [other.id], ...reference, explanation: `${recent ? 'Recently stopped medicine: ' : ''}${reference.explanation}` });
@@ -61,7 +61,7 @@ export function recordDose(state, id, status, method, now, reason = '') {
 // This validates a synthetic model proposal. These are fixture constraints, NOT clinical spacing rules.
 export function validateReplan(med, confirmed, future, proposal, day, timeZone) {
   if (isHighRisk(med)) throw new Error(PHARMACIST);
-  if (!med.demo || med.id !== 'med-metformin' || med.minSpacingHours !== 10) throw new Error('A pharmacist-approved timing plan is required for this medicine.');
+  if (!med.demo || med.id !== 'med-metformin' || med.minSpacingHours !== 10 || canonical(med.ingredient) !== 'metformin' || med.strengthMg !== 500 || med.doseQuantity !== 1) throw new Error('A pharmacist-approved timing plan is required for this medicine.');
   if (!proposal || !Array.isArray(proposal.changes) || proposal.changes.length !== future.length || typeof proposal.explanation !== 'string' || !proposal.explanation.trim()) throw new Error('The model did not return a complete plan.');
   if (proposal.explanation.length > 600 || /double|increase|decrease|take\b|stop\b|safe to|skip\b|resume tomorrow/i.test(proposal.explanation)) throw new Error('The explanation needs pharmacist review.');
   const seen = new Set(); let last = new Date(confirmed.confirmedAt).getTime();
@@ -79,7 +79,7 @@ export function applyReplan(state, med, confirmed, proposal) {
   const future = state.doses.filter(d => d.medicationId === med.id && d.status === 'pending' && localDay(d.scheduledAt) === localDay(confirmed.confirmedAt)).sort((a,b) => a.scheduledAt.localeCompare(b.scheduledAt));
   validateReplan(med, confirmed, future, proposal, localDay(confirmed.confirmedAt));
   const changes = proposal.changes.map(c => ({ id: uid(), doseId: c.doseId, medicationId: med.id, oldTime: future.find(d => d.id === c.doseId).scheduledAt, newTime: new Date(c.newTime).toISOString(), reason: proposal.explanation, at: confirmed.confirmedAt }));
-  return { ...state, doses: state.doses.map(d => { const change = changes.find(c => c.doseId === d.id); return change ? { ...d, scheduledAt: change.newTime, replanReason: change.reason } : d; }), changes: [...state.changes, ...changes], audit: [...state.audit, { id: uid(), type: 'replan', at: confirmed.confirmedAt, reason: proposal.explanation, source: proposal.source || 'fixture' }] };
+  return { ...state, doses: state.doses.map(d => { const change = changes.find(c => c.doseId === d.id); return change ? { ...d, scheduledAt: change.newTime, replanReason: change.reason } : d; }), changes: [...state.changes, ...changes], audit: [...state.audit, { id: uid(), type: 'replan', at: confirmed.confirmedAt, reason: proposal.explanation, source: proposal.source || 'unknown' }] };
 }
 export function makeSeed(now = new Date()) {
   const day = localDay(now); const start = new Date(`${day}T12:00:00`); start.setDate(start.getDate() - 30);

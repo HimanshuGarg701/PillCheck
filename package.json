@@ -3,14 +3,23 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "engines": { "node": ">=22" },
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
-    "dev": "node --env-file-if-exists=.env.local server/dev.mjs",
+    "dev": "node --env-file-if-exists=.env.local node_modules/vite/bin/vite.js",
     "build": "vite build",
     "preview": "vite preview --host 127.0.0.1",
     "test": "node --test tests/*.test.mjs",
     "check": "node --test tests/*.test.mjs && vite build"
   },
-  "dependencies": { "pdf-lib": "^1.17.1" },
-  "devDependencies": { "vite": "^7.1.0" }
+  "dependencies": {
+    "nitro": "3.0.260903-beta",
+    "pdf-lib": "^1.17.1",
+    "web-push": "^3.6.7",
+    "workflow": "^5.2.3"
+  },
+  "devDependencies": {
+    "vite": "^7.1.0"
+  }
 }
