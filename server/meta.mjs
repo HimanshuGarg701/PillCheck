@@ -150,6 +150,7 @@ export async function runTask(
   body,
   {
     fetchImpl = fetch,
+    sleepImpl = (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
     apiKey = process.env.MODEL_API_KEY,
     model = process.env.MODEL_ID || "muse-spark-1.3",
   } = {},
@@ -160,7 +161,7 @@ export async function runTask(
       "Meta Model API is not configured. Set MODEL_API_KEY on the server.",
       503,
     );
-  const result = await fetchImpl("https://api.meta.ai/v1/responses", {
+  const request = {
     method: "POST",
     headers: {
       Authorization: `Bearer ${apiKey}`,
@@ -199,7 +200,26 @@ export async function runTask(
       },
     }),
     signal: AbortSignal.timeout(24000),
-  });
+  };
+  let result;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    result = await fetchImpl("https://api.meta.ai/v1/responses", request);
+    if (
+      result.ok ||
+      attempt === 2 ||
+      ![404, 502, 503, 504].includes(result.status)
+    )
+      break;
+    const detail = await result
+      .clone()
+      .json()
+      .catch(() => ({}));
+    if (result.status === 404 && detail.error?.code !== "model_not_found")
+      break;
+    // Real production calls intermittently return this routing error for the same model/key.
+    // Retry only failed inference; never substitute generated text or change the model.
+    await sleepImpl(800 * (attempt + 1));
+  }
   if (!result.ok) {
     // Only surface a short machine error code, never provider bodies or credentials.
     const failure = await result.json().catch(() => ({}));

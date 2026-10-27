@@ -151,3 +151,38 @@ test("dose confirmation is append-only, cannot double-record, and retains exact 
     /already recorded/,
   );
 });
+
+test("retries observed transient model routing failures without changing provider or model", async () => {
+  let calls = 0;
+  const result = await runTask(
+    { task: "connection" },
+    {
+      apiKey: "test",
+      sleepImpl: async () => {},
+      fetchImpl: async (url, options) => {
+        assert.equal(url, "https://api.meta.ai/v1/responses");
+        assert.equal(JSON.parse(options.body).model, "muse-spark-1.3");
+        calls++;
+        return calls < 3
+          ? Response.json(
+              { error: { code: "model_not_found" } },
+              { status: 404 },
+            )
+          : Response.json({
+              id: "real-response-shape",
+              output: [
+                {
+                  type: "message",
+                  content: [
+                    { type: "output_text", text: '{"message":"verified"}' },
+                  ],
+                },
+              ],
+            });
+      },
+    },
+  );
+  assert.equal(calls, 3);
+  assert.equal(result.message, "verified");
+  assert.equal(result.source, "meta");
+});
