@@ -13,4 +13,6 @@ Use only the fictional Alex Morgan profile and bundled labels. Start in a fresh 
 | 2:10–2:30 | History and PDF | Show dated confirmations, historical regimens, a date filter, and PDF download. |
 | 2:30–2:45 | Today / end card | “PillCheck. Indie Developer. Build for Your World. Built with Meta Model API and Muse Spark 1.3.” Show repo/live links and disclaimer. |
 
-The video is not recorded or uploaded yet. Publication must use the owner's chosen YouTube account and be publicly accessible to judges. No unsupported competitor or clinical-impact claims should be added.
+A [2:37 narrated walkthrough draft](media/pillcheck-demo-draft.mp4) and [captions](media/pillcheck-demo.vtt) are available. It uses actual app screenshots and synthesized narration, rather than claiming an uninterrupted screen recording. The Cimetidine screen is explicitly identified as manual entry, and the ending records the intermittent Meta errors and pending notification test. The table above remains a plan for a live recording if preferred.
+
+Public YouTube publication still requires the owner's chosen account and final review. No unsupported competitor or clinical-impact claims should be added.

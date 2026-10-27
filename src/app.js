@@ -362,7 +362,8 @@ function saveCandidate() {
     state.doses = state.doses.map((d) =>
       d.medicationId === c.editing &&
       d.status === "pending" &&
-      localDay(d.scheduledAt) >= c.startDate
+      localDay(d.scheduledAt) >= c.startDate &&
+      new Date(d.scheduledAt) >= now()
         ? {
             ...d,
             status: "cancelled",

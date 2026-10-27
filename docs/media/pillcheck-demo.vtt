@@ -1,0 +1,97 @@
+WEBVTT
+
+00:00:00.000 --> 00:00:05.611
+Managing several medicine labels can make a daily routine hard to follow. PillCheck brings
+
+00:00:05.611 --> 00:00:10.821
+the recorded schedule, reminders, and history together. This public web demo uses a
+
+00:00:10.821 --> 00:00:16.031
+fictional Alex Morgan profile, three medicines, and thirty days of synthetic history. No
+
+00:00:16.031 --> 00:00:17.233
+login is required.
+
+00:00:18.633 --> 00:00:24.280
+Choose a bundled label, upload a synthetic photo, paste label text, or enter details
+
+00:00:24.280 --> 00:00:30.330
+manually. Muse Spark 1.3 reads the actual input through Meta Model API. Every field is
+
+00:00:30.330 --> 00:00:35.573
+reviewable before saving. Missing details stay uncertain, and a failed model call never
+
+00:00:35.573 --> 00:00:37.590
+becomes a fabricated medicine record.
+
+00:00:38.991 --> 00:00:44.029
+The live Glucophage scan identifies the same ingredient as the existing metformin record.
+
+00:00:44.029 --> 00:00:48.680
+PillCheck shows the combined daily amount of two thousand milligrams and requires
+
+00:00:48.680 --> 00:00:53.719
+acknowledgment of the pharmacist warning. This figure describes the fictional records; it is
+
+00:00:53.719 --> 00:00:55.269
+not a dose recommendation.
+
+00:00:56.668 --> 00:01:01.402
+A reviewed cimetidine entry raises a sourced interaction concern with metformin. This screen
+
+00:01:01.402 --> 00:01:06.500
+was tested through manual entry. The reference set is deliberately limited, so the absence
+
+00:01:06.500 --> 00:01:11.597
+of a warning never means a combination is safe. Recently stopped medicines and recorded
+
+00:01:11.597 --> 00:01:13.418
+class concerns are also checked.
+
+00:01:14.818 --> 00:01:19.942
+Reminder cards show the medicine and recorded quantity. Meta generates the reminder text,
+
+00:01:19.942 --> 00:01:25.855
+and browser speech can read it aloud. The final Done control records the confirmation time
+
+00:01:25.855 --> 00:01:31.373
+and method. Voice input depends on browser support. Online Web Push is implemented; physical
+
+00:01:31.373 --> 00:01:33.738
+notification delivery is still awaiting testing.
+
+00:01:35.138 --> 00:01:40.841
+In the bounded late-dose demonstration, a morning entry is recorded at ten A M. The live
+
+00:01:40.841 --> 00:01:46.899
+model moves the evening event from six to eight P M while keeping one tablet unchanged. The
+
+00:01:46.899 --> 00:01:51.176
+ten-hour spacing belongs only to this fictional scenario. Other medicines require pharmacist
+
+00:01:51.176 --> 00:01:54.384
+review, and known high-risk medicines cannot use automatic replanning.
+
+00:01:55.784 --> 00:02:00.800
+History keeps dated confirmations, regimen versions, and an audit trail. Filter the records
+
+00:02:00.800 --> 00:02:06.588
+and download a PDF with the disclaimer. With its server stopped, the cached app still
+
+00:02:06.588 --> 00:02:11.603
+displayed a due in-app reminder, saved a confirmation, and exported the resulting history.
+
+00:02:11.603 --> 00:02:15.076
+Background offline delivery is outside the agreed web scope.
+
+00:02:16.476 --> 00:02:22.519
+PillCheck is an Indie Developer project for Build for Your World, using Muse Spark 1.3
+
+00:02:22.519 --> 00:02:28.563
+through Meta Model API. The app and source are public. Meta has returned intermittent model
+
+00:02:28.563 --> 00:02:32.995
+availability errors during testing, which remain documented. Informational only, not medical
+
+00:02:32.995 --> 00:02:35.815
+advice. Confirm with your doctor or pharmacist.

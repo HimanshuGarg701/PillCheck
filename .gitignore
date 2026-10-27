@@ -14,3 +14,5 @@ output/
 .workflow-data
 .workflow
 /.swc
+
+.pnpm-store/

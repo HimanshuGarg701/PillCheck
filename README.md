@@ -6,6 +6,10 @@ A mobile-first medication schedule companion, demonstrated with fictional record
 
 **Track:** Indie Developer · **Theme:** Build for Your World
 
+[Watch/download the 2:37 walkthrough draft](docs/media/pillcheck-demo-draft.mp4) · [Captions](docs/media/pillcheck-demo.vtt) · [Submission draft](docs/submission.md)
+
+![PillCheck public demo](docs/media/today-desktop.jpg)
+
 > Informational only, not medical advice. Confirm with your doctor or pharmacist.
 
 ## Try it
@@ -26,7 +30,9 @@ The owner approved **Muse Spark 1.3 through Meta Model API** in place of the bri
 
 Interaction checking currently has one curated DailyMed pair: metformin/cimetidine. Absence of a flag does not establish safety. Ingredient matching normalizes common hydrochloride/HCl naming for the demo but is not a comprehensive drug terminology service. High-risk name/class matching blocks automated replanning. The app does not prescribe, choose treatment, or change dose quantities. Missing clinical spacing data is handled by pharmacist referral, not invented timing advice.
 
-See [requirements and verification](docs/requirements.md), [architecture](docs/architecture.md), and [demo recording plan](docs/demo-script.md). A published YouTube demo and final submission review are still outstanding.
+See [requirements and verification](docs/requirements.md), [architecture](docs/architecture.md), and [demo recording plan](docs/demo-script.md). A narrated walkthrough draft is included; public YouTube publication and final submission review are still outstanding. The owner has deferred physical notification delivery testing.
+
+Live Meta extraction, spoken-reminder text, and the fictional timing replan have been verified on production. Meta also intermittently returns `model_not_found` for the same approved model. The server retries within a bounded timeout and shows an error if unsuccessful. Manual entry remains available; failed scans do not create records. The Cimetidine interaction warning was verified through manual entry after its image request failed.
 
 ## Development
 

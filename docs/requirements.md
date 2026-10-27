@@ -8,13 +8,13 @@ This checklist translates the supplied PillCheck requirements brief into verific
 - [x] Connect Vercel to this repository for automatic deployments.
 - [x] Configure the Meta Model API credential only on the server.
 - [x] Resolve the brief's Llama model name against current Meta account availability with the owner: Muse Spark 1.3 approved.
-- [ ] Deploy one responsive web app at a public HTTPS URL, with no login required by judges.
+- [x] Deploy one responsive web app at a public HTTPS URL, with no login required by judges.
 - [ ] Verify the full flow on phone and desktop, including an incognito session.
 - [x] Preload 3–4 synthetic medications and a full daily schedule.
 - [x] Bundle three synthetic label images covering ordinary intake, duplicate ingredient, and interaction scenarios.
-- [ ] Provide instant reminder and late-dose demo controls that exercise the implemented workflows.
+- [x] Provide instant reminder and late-dose demo controls that exercise the implemented workflows.
 - [ ] Record a self-contained demo of at most three minutes and publish its accessible YouTube link.
-- [ ] Prepare submission text naming the Indie Developer track and Build for Your World theme, the problem, audience, Meta tools, and why the models matter.
+- [x] Prepare submission text naming the Indie Developer track and Build for Your World theme, the problem, audience, Meta tools, and why the models matter. See [submission draft](submission.md).
 - [ ] Verify public repository, live URL, video, and team details before submission.
 
 ## Functional requirements
@@ -38,23 +38,23 @@ This checklist translates the supplied PillCheck requirements brief into verific
 
 ## Safety acceptance criteria
 
-- [ ] S-01: Never increase, decrease, or combine doses.
-- [ ] S-02: Never claim that a medication combination is safe.
-- [ ] S-03: Route missed/late high-risk medicines to a pharmacist.
-- [ ] S-04: Log every recommendation and its reason.
-- [ ] S-05: Show the required disclaimer on guidance screens, reminders, and PDFs.
-- [ ] S-06: Track adherence and flag concerns without recommending medication starts, stops, or changes.
+- [x] S-01: AI timing changes cannot increase, decrease, or combine doses; validated on both server and client.
+- [x] S-02: Reference results never claim that a medication combination is safe.
+- [x] S-03: Recognized missed/late high-risk medicines route to a pharmacist; the explicit user flag also blocks replanning.
+- [x] S-04: Persist timing changes with before/after times and reasons; log failed replans and risk acknowledgments.
+- [x] S-05: Show the required disclaimer on guidance screens, reminders, and PDFs.
+- [x] S-06: Track adherence and flag concerns without recommending medication starts, stops, or quantity changes.
 
 The missed-dose timing rules and the prohibition on medical advice require careful implementation. The brief does not supply a clinically validated medication-specific spacing dataset. This is an unresolved requirement, not permission to invent clinical thresholds.
 
 ## Data and persistence
 
-- [ ] Medication, DoseEvent, ScheduleChange, and InteractionFlag entities.
-- [ ] UTC timestamp storage and local-time presentation.
-- [ ] Persist dose state across refreshes and retain historical regimen versions.
-- [ ] Preserve stopped medications and append-only event history.
-- [ ] Keep synthetic fixtures separate from user-confirmed records.
-- [ ] Validate model output before accepting it into the schedule.
+- [x] Medication, DoseEvent, ScheduleChange, and InteractionFlag entities.
+- [x] UTC timestamp storage and local-time presentation.
+- [x] Persist dose state across refreshes and retain historical regimen versions.
+- [x] Preserve stopped medications and append-only audit history.
+- [x] Clearly mark this entire app as synthetic; newly reviewed entries record manual/model provenance. No real-patient mode is offered.
+- [x] Validate model output before accepting it into the schedule.
 
 ## Explicit unresolved constraints
 
@@ -75,7 +75,15 @@ Caregiver access, escalation, and travel/time-zone handling follow the core requ
 ## Verification log
 
 - 2026-10-26: live Meta connection verified on the initial Vercel deployment.
-- 2026-10-26: 15 focused automated tests pass; Node and Vercel production builds pass.
-- 2026-10-26: desktop and 375px phone layout inspected; duplicate salt-name matching shows 2,000 mg; required acknowledgment blocks saving; final reminder-card confirmation persists after refresh.
-- 2026-10-26: PDF generated and first page visually rendered; full history and regimen sections present.
-- Full app production calls, background delivery, voice permission, and remaining final judging artifacts still require end-to-end verification.
+- 2026-10-26: 18 focused automated tests pass; Vercel production build passes. The final tests cover confirmation and disabling while a background schedule request is still in flight.
+- 2026-10-26: desktop (1280px) and phone (375px) layout inspected; no horizontal overflow observed. This is browser viewport testing, not physical-phone certification or an incognito check.
+- 2026-10-26: live production image extraction succeeds for Metformin and Glucophage. Glucophage review shows the duplicate salt-name match and 2,000 mg combined amount; required acknowledgment blocks saving.
+- 2026-10-26: live production reminder generation succeeds. The UI late-dose scenario records 10 AM, receives a live Meta proposal, moves the fictional evening event from 6 PM to 8 PM, and preserves the one-tablet quantity and audit reason.
+- 2026-10-26: Cimetidine interaction warning verified using manual review. Its live image-extraction request returned provider errors; that specific sample's extraction is not marked verified.
+- 2026-10-26: Meta intermittently returns `404 model_not_found` for the approved `muse-spark-1.3` model, interspersed with successful calls. The adapter retries the same model within a bounded timeout, then reports failure. No fallback provider, model, or fake successful response is substituted.
+- 2026-10-26: final reminder-card confirmation persists after refresh. With the local origin server completely stopped, the service-worker-cached app reloads, displays a due in-app reminder, saves confirmation, and exports the updated PDF.
+- 2026-10-26: browser-downloaded PDF parsed across eight pages, including the offline confirmation. A generated PDF's first page was visually rendered and inspected; history and regimen sections are present.
+- 2026-10-26: production push public-key route and service-worker assets respond successfully. Client schedule/cancel races and server subscription/cancellation validation are tested. Physical Web Push delivery remains deferred at the owner's request ("I'll test notifications later").
+- 2026-10-26: a 2:37 narrated walkthrough draft uses actual app captures, including a clearly identified manual interaction check. Public YouTube publication remains pending.
+
+Remaining acceptance checks: supported-phone notification delivery, microphone/voice confirmation and multilingual speech on real devices, incognito flow, the final YouTube link and submission review. Clinical timing rules and comprehensive interaction coverage remain outside the validated demonstration.

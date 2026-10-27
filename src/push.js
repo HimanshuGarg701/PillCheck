@@ -1,5 +1,6 @@
 import { scheduleFor, localDay } from "./domain.js";
 const KEY = "pillcheck:push-runs";
+let stopping = false;
 function bounded(promise, message, ms = 15000) {
   let timer;
   return Promise.race([
@@ -37,6 +38,7 @@ async function subscription() {
   return sw.pushManager.getSubscription();
 }
 export async function enablePush(state) {
+  stopping = false;
   if (!pushSupported())
     throw new Error("This browser does not support background Web Push.");
   const permission = await bounded(
@@ -67,6 +69,8 @@ export async function enablePush(state) {
   await syncPush(state, true);
 }
 export async function disablePush() {
+  stopping = true;
+  if (syncing) await syncing.catch(() => {});
   const runs = JSON.parse(localStorage.getItem(KEY) || "{}");
   for (const [id, r] of Object.entries(runs)) {
     await call("cancel", r);
@@ -78,7 +82,12 @@ export async function disablePush() {
 }
 let syncing;
 export async function syncPush(state, force = false) {
-  if (syncing) return syncing;
+  if (stopping) return;
+  if (syncing)
+    return syncing.then(
+      () => syncPush(state, force),
+      () => syncPush(state, force),
+    );
   if (!force && !state.pushEnabled) return;
   if (!navigator.onLine) return;
   syncing = (async () => {
@@ -119,6 +128,7 @@ export async function syncPush(state, force = false) {
       }
     }
     for (const d of target) {
+      if (stopping) break;
       if (!runs[d.id]) {
         const run = await call("schedule", {
           subscription: sub.toJSON(),
