@@ -21,7 +21,7 @@ The app starts with a sample profile for Alex Morgan, three medicines, and 30 da
 ## Use the app
 
 - **Today:** review grouped reminder cards, then confirm the group on its final card. Confirmations record an already-taken dose at the current time. Skipped doses can include a reason.
-- **Add medicine:** photograph or import a label, paste its text, or enter medicine details manually. Three optional sample labels are available under **Try a sample label**. Review is mandatory. Recognized names can fill the active ingredient. An AI review compares the new medicine with the active and recently stopped list, using U.S. RxNorm ingredient identities and retrieved label references. Review findings require acknowledgment.
+- **Add medicine:** photograph or import a label, paste its text, or enter medicine details manually. Three optional sample labels are available under **Try a sample label**. Review is mandatory. When entering a medicine manually, typing its name automatically identifies the active ingredient using Meta and NLM RxNorm. The ingredient appears for confirmation; manual entry is available for unresolved names or corrections. An AI review compares the new medicine with the active and recently stopped list, using U.S. RxNorm ingredient identities and retrieved label references. Review findings require acknowledgment.
 - **Medicines:** use **AI interactions & timing** to review a saved medicine against the rest of the list, inspect ingredient overlap and source-linked findings, and view historical review snapshots. Updating or archiving a prescription preserves earlier medication versions, dose records, and the audit trail.
 - **History:** filter dates and medicines, inspect adherence, and export a native PDF through the iOS share sheet.
 - **Preferences:** choose English, Spanish, or Hindi for speech; enable local notifications; export all records as JSON; or expand **Sample medicines & previews** to explore check-ins at another time. Reminder previews pause notifications.
@@ -56,7 +56,7 @@ pnpm build
 
 ## AI interactions, brand duplicates, and timing
 
-The fourth Meta operation, `review`, checks a candidate against every supplied active or recently stopped medicine (up to 20, without silent truncation). It looks for ingredient overlap under different brands and potential interactions. NLM RxNorm supplies ingredient identities, including ingredients within combination products. Label references come from openFDA and link to DailyMed. Unknown brands, ingredient mismatches, missing labels, and shortened excerpts remain visible limitations.
+The Meta operation `review` checks a candidate against every supplied active or recently stopped medicine (up to 20, without silent truncation). It looks for ingredient overlap under different brands and potential interactions. NLM RxNorm supplies ingredient identities, including ingredients within combination products. Label references come from openFDA and link to DailyMed. Unknown brands, ingredient mismatches, missing labels, and shortened excerpts remain visible limitations.
 
 The model must return a finding for every comparison and cite actual supplied passages for interaction claims. The server rejects invented citations, erased deterministic warnings, safety guarantees, and unsupported timing drafts. A failed Meta call returns **AI review incomplete**, alongside clearly distinguished reference-only findings. Recording an existing prescription remains possible after explicit acknowledgment; it is not safety approval.
 

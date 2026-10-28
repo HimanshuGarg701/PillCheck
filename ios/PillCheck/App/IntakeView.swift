@@ -212,6 +212,30 @@ struct MedicineEditor: View {
     @State private var reviewRequest = UUID()
     @State private var reviewedList: [Medication] = []
     @State private var error: String?
+    @State private var ingredientForName: String
+    @State private var identification: IngredientIdentification?
+    @State private var identifying = false
+    @State private var ingredientIssue: String?
+    @State private var manualIngredient = false
+    @State private var ingredientRetry = 0
+    @State private var ingredientRequest = UUID()
+    init(draft: MedicineDraft, onSaved: @escaping () -> Void = {}) {
+        _draft = State(initialValue: draft)
+        self.onSaved = onSaved
+        _ingredientForName = State(initialValue: draft.ingredient.isEmpty ? "" : IngredientIdentification.nameKey(draft.name))
+    }
+    private var enteredName: String { IngredientIdentification.nameKey(draft.name) }
+    private var nameBinding: Binding<String> {
+        Binding(get: { draft.name }, set: { name in
+            let changed = IngredientIdentification.nameKey(name) != enteredName
+            draft.name = name
+            if changed {
+                ingredientRequest = UUID(); identifying = false
+                draft.ingredient = ""; ingredientForName = ""; identification = nil
+                ingredientIssue = nil; manualIngredient = false
+            }
+        })
+    }
     var body: some View {
         NavigationStack {
             Form {
@@ -222,14 +246,9 @@ struct MedicineEditor: View {
                     }
                 }
                 Section("Copy the recorded prescription") {
-                    field("Medicine name", text: $draft.name).accessibilityIdentifier("medicine-name")
-                    if !draft.name.isEmpty {
-                        let known = ["Metformin", "Glucophage", "Cimetidine", "Amlodipine", "Atorvastatin", "Warfarin", "Insulin"].filter { $0.localizedCaseInsensitiveContains(draft.name) }
-                        ForEach(known, id: \.self) { name in
-                            Button("Use \(name)") { draft.name = name; draft.ingredient = name == "Glucophage" ? "metformin" : name.lowercased() }
-                        }
-                    }
-                    field("Active ingredient", text: $draft.ingredient)
+                    field("Medicine name", text: nameBinding).accessibilityIdentifier("medicine-name")
+                    Text("Enter the brand or generic name from your label. The name is sent to Meta and U.S. medicine references to identify the ingredient.").font(.footnote).foregroundStyle(.secondary)
+                    ingredientDetails
                     field("Strength (mg)", text: $draft.strength).keyboardType(.decimalPad)
                     field("Quantity per dose", text: $draft.quantity).keyboardType(.decimalPad)
                     field("Dose unit (tablet, capsule…)", text: $draft.unit)
@@ -248,7 +267,7 @@ struct MedicineEditor: View {
                     Button { Task { await check() } } label: {
                         if checkingAI { HStack { ProgressView().tint(.white); Text("Checking references & AI…") } }
                         else { Label("Check with AI & references", systemImage: "sparkles") }
-                    }.buttonStyle(PrimaryButtonStyle()).disabled(!reviewed || checkingAI)
+                    }.buttonStyle(PrimaryButtonStyle()).disabled(!reviewed || checkingAI || identifying || draft.ingredient.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 }
                 if let aiReview { Section { MedicationReviewContent(review: aiReview) } }
                 if candidate != nil && !checkingAI {
@@ -265,6 +284,62 @@ struct MedicineEditor: View {
                 .navigationTitle(draft.original == nil ? "Review medicine" : "Update regimen").navigationBarTitleDisplayMode(.inline)
                 .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } } }
                 .onChange(of: draft) { _, _ in clearCheck() }
+                .task(id: "\(enteredName)|\(ingredientRetry)") { await identifyIngredient() }
+        }
+    }
+    @ViewBuilder private var ingredientDetails: some View {
+        if manualIngredient {
+            field("Active ingredient from your label", text: $draft.ingredient)
+            Text("For a combination product, include every active ingredient.").font(.footnote).foregroundStyle(.secondary)
+        } else if identifying {
+            HStack { ProgressView(); Text("Identifying active ingredient…") }.font(.subheadline)
+        } else if !draft.ingredient.isEmpty {
+            VStack(alignment: .leading, spacing: 8) {
+                Label("Active ingredient", systemImage: "pills").font(.caption).foregroundStyle(.secondary)
+                Text(draft.ingredient).font(.headline)
+                Text(identification?.message ?? "Check this ingredient against your prescription label.").font(.footnote).foregroundStyle(.secondary)
+                if let source = identification?.sourceURL, let url = URL(string: source) { Link("View medicine reference", destination: url).font(.footnote) }
+            }.padding(.vertical, 4)
+        } else if let ingredientIssue {
+            Text(ingredientIssue).font(.subheadline).foregroundStyle(Theme.amber)
+        } else {
+            Text("The active ingredient will appear here after you enter the medicine name.").font(.subheadline).foregroundStyle(.secondary)
+        }
+        if !manualIngredient {
+            Button(draft.ingredient.isEmpty ? "Enter ingredient manually" : "Correct ingredient") {
+                manualIngredient = true; ingredientRequest = UUID(); identifying = false
+                identification = nil; ingredientRetry += 1; clearCheck()
+            }.font(.subheadline)
+        }
+        if manualIngredient || ingredientIssue != nil {
+            Button("Identify from medicine name") {
+                manualIngredient = false; draft.ingredient = ""; ingredientForName = ""
+                identification = nil; ingredientIssue = nil; ingredientRetry += 1
+            }.font(.subheadline).disabled(enteredName.count < 2)
+        }
+    }
+    private func identifyIngredient() async {
+        guard !manualIngredient, enteredName.count >= 2,
+              ingredientForName != enteredName || draft.ingredient.isEmpty else { return }
+        let name = draft.name.trimmingCharacters(in: .whitespacesAndNewlines)
+        let requestedName = enteredName
+        let request = UUID(); ingredientRequest = request
+        identifying = true; ingredientIssue = nil
+        defer { if ingredientRequest == request { identifying = false } }
+        do {
+            try await Task.sleep(for: .milliseconds(900))
+            try Task.checkCancellation()
+            let result = try await store.meta.identify(name: name)
+            guard !Task.isCancelled, ingredientRequest == request, enteredName == requestedName, !manualIngredient,
+                  IngredientIdentification.nameKey(result.name) == requestedName else { return }
+            identification = result
+            if result.matched {
+                draft.ingredient = result.ingredients.joined(separator: " + ")
+                ingredientForName = requestedName
+            } else { ingredientIssue = result.message }
+        } catch {
+            guard !Task.isCancelled, ingredientRequest == request, enteredName == requestedName, !manualIngredient else { return }
+            ingredientIssue = "Ingredient lookup could not complete. Retry, or enter the ingredient from your label."
         }
     }
     private func field(_ label: String, text: Binding<String>) -> some View {
@@ -277,6 +352,7 @@ struct MedicineEditor: View {
         reviewRequest = UUID(); checkingAI = false; candidate = nil; flags = []; aiReview = nil; acknowledged = false; reviewed = false
     }
     private func check() async {
+        guard !identifying else { return }
         error = nil; candidate = nil; aiReview = nil; acknowledged = false
         let request = UUID(); reviewRequest = request
         do {

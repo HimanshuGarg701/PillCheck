@@ -22,7 +22,7 @@ Already-scheduled local notifications do not require a running application or ne
 
 ## Meta API
 
-`POST /api/ai` supports scan, speak, replan, review, and connection operations. Native URLSession requests omit browser Origin headers. The server retains browser same-origin checks when an Origin is provided, plus payload bounds, a per-instance burst limit, structured response schemas, a timeout, and sanitized errors. These are not distributed spending controls.
+`POST /api/ai` supports identify, scan, speak, replan, review, and connection operations. Native URLSession requests omit browser Origin headers. The server retains browser same-origin checks when an Origin is provided, plus payload bounds, a per-instance burst limit, structured response schemas, a timeout, and sanitized errors. These are not distributed spending controls.
 
 The Vercel-only credential calls Muse Spark 1.3 through Meta's Responses endpoint. Selected label images are resized locally and submitted as image input, never replaced with fixture text. Missing fields remain uncertain and require review. Failed requests do not create medicines or change schedules. Reminder text is cached locally by exact medicine, quantity, unit, and language for offline playback.
 
@@ -54,3 +54,9 @@ The root HTML is a small migration notice. `/sw.js` replaces the prior PWA worke
 ## Product wording and sample data
 
 The main screens use ordinary medicine, prescription, and history terminology. Sample labels and reminder previews are optional controls, with the latter grouped in Preferences. Sample label images are rendered from native SwiftUI text before the actual image is submitted to Meta. Historical sample entries remain identified as samples in history and PDF exports. Known legacy system labels are formatted for display without rewriting saved audit records. Spoken reminder cache keys are versioned so previously generated development wording is not replayed. Clinical limitations and pharmacist-review requirements remain explicit.
+
+## Ingredient identification during manual entry
+
+The native form debounces name entry by 900 ms and calls `identify` with the name alone. The server resolves a unique RxNorm identity, then asks Meta to verify the supplied name and ingredient set. The model cannot introduce, drop, or substitute reference ingredients. Broad brand matches with multiple ingredient possibilities require a more specific product name; specific combination products retain every ingredient. Unknown names and failed reference lookups never fall back to model memory. A provider failure can return an explicitly labeled reference-only match.
+
+The ingredient is displayed as a reviewable result rather than a required blank field. Users can correct it or enter the label ingredient if lookup fails. Changing the medicine name clears the previous ingredient and invalidates its review. Cancelled requests, responses for older names, and responses arriving after a manual override cannot overwrite the current form. Strength, quantity, and schedule remain user-entered prescription details.

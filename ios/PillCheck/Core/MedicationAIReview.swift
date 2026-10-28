@@ -1,5 +1,22 @@
 import Foundation
 
+struct IngredientIdentification: Codable, Equatable {
+    static func nameKey(_ name: String) -> String {
+        name.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
+            .replacingOccurrences(of: #"\s+"#, with: " ", options: .regularExpression)
+    }
+    let name: String
+    let matchedName: String
+    let status: String
+    let ingredients: [String]
+    let sourceURL: String?
+    let source: String
+    let aiStatus: String
+    let model: String?
+    let message: String
+    var matched: Bool { status == "matched" && !ingredients.isEmpty }
+}
+
 struct MedicationAIReview: Identifiable, Codable, Equatable {
     struct Identity: Identifiable, Codable, Equatable {
         var id: String { medicationId }

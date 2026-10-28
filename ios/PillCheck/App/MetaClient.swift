@@ -31,6 +31,9 @@ struct MetaClient {
     func scan(text: String) async throws -> ScanResult {
         try await post(["task": "scan", "text": text], as: ScanResult.self)
     }
+    func identify(name: String) async throws -> IngredientIdentification {
+        try await post(["task": "identify", "name": name], as: IngredientIdentification.self)
+    }
     func reminder(medication: Medication, language: String) async throws -> String {
         struct Result: Decodable { let text: String }
         let result = try await post(["task": "speak", "language": language, "medications": [["name": medication.name, "doseQuantity": medication.doseQuantity, "doseUnit": medication.doseUnit]]], as: Result.self)

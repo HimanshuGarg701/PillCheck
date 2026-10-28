@@ -7,7 +7,7 @@ The original 12-page `pillcheck-requirements-garg.pdf` was reread for the native
 | Requirement | Native implementation | Verification / limits |
 | --- | --- | --- |
 | FR-01 / FR-01A | Actual image or pasted-label extraction through Meta; three bundled synthetic labels; uncertain-field review; manual fallback | Native request/error handling checked. Provider returned `model_not_found` during iOS image and spoken-reminder checks; live success for those operations has not yet been reverified. |
-| FR-02 | Manual review form, known-name ingredient suggestions, persistent field labels, no medical-name autocorrect | Native manual entry and duplicate acknowledgment checked. |
+| FR-02 | Manual review form, automatic name-to-ingredient identification with a manual correction option, persistent field labels, no medical-name autocorrect | Native manual entry and duplicate acknowledgment checked. |
 | FR-03 | Chronological Today schedule; append-only regimen versions and completed history | Core tests cover new future events without backfilling earlier times. |
 | FR-04 | Reference flags at intake and on the active schedule | Offline curated metformin/cimetidine flag plus AI pairwise review of retrieved U.S. label excerpts. Sources, unresolved identities, and incomplete checks are explicit; no “safe” outcome. |
 | FR-05 | Duplicate ingredient acknowledgment with combined daily mg | Local combined-total checks remain; U.S. RxNorm identity now detects shared ingredients across brands and combination products before AI interpretation. |
@@ -50,3 +50,7 @@ New tests reject omitted pairs, invented citations, downgraded duplicates, safet
 A live production timing review also completed with Muse Spark 1.3 using two synthetic records initially set to 08:00. It flagged the levothyroxine/calcium spacing conflict and returned a 12:00 candidate draft that passed the four-hour validator while preserving the other medicine time. This was an endpoint test; it did not update any user prescription or Simulator record.
 
 The native prescription form was also checked against production: a later AI response without adequate label evidence was rejected and shown as incomplete, while reference-only duplicate findings remained visible. Save stayed disabled until the explicit incomplete-check acknowledgment was selected. The form was then cancelled, leaving medication records unchanged.
+
+## Manual ingredient identification — October 28, 2026
+
+Typing a medicine name now starts automatic ingredient identification using Meta with server-retrieved RxNorm evidence. The iOS form displays the ingredient for review instead of requiring users to know it. Reference lookups were verified live for Glucophage, Advil, and the amlodipine/atorvastatin combination. Seven added backend tests cover exact matches, combinations, broad-brand ambiguity, outages, invalid input, and unsupported model output. Current automated results: 30 Node tests and 11 Swift tests passing; native Simulator and backend builds pass.

@@ -185,6 +185,7 @@ async function identity(med, fetchImpl, signal) {
     const value = {
       medicationId: med.id,
       name: props?.properties?.name ?? med.name,
+      termType: props?.properties?.tty ?? null,
       status: "matched",
       ingredients: ins.map((c) => c.name),
       ingredientIds: ins.map((c) => c.rxcui),
@@ -197,6 +198,19 @@ async function identity(med, fetchImpl, signal) {
   } catch {
     return missing;
   }
+}
+
+export async function lookupIngredientIdentity(
+  name,
+  { fetchImpl = fetch } = {},
+) {
+  if (typeof name !== "string" || name.trim().length < 2 || name.length > 150)
+    throw new ReviewError("Enter the medicine name as printed on its label.");
+  return identity(
+    { id: "candidate", name: name.trim() },
+    fetchImpl,
+    AbortSignal.timeout(8000),
+  );
 }
 
 async function label(med, resolved, fetchImpl, signal) {
