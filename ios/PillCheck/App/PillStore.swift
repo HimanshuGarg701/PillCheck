@@ -4,6 +4,7 @@ import Combine
 struct ReminderSelection: Identifiable {
     let id = UUID()
     let doseIDs: [String]
+    var isPreview = false
 }
 
 @MainActor
@@ -20,6 +21,8 @@ final class PillStore: ObservableObject {
     let speech = SpeechService()
     let meta = MetaClient()
     let fileURL: URL
+    private var reminderCards = ReminderCardQueue()
+    private var reminderBlockers = Set<UUID>()
 
     init() {
         let documents = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
@@ -34,11 +37,13 @@ final class PillStore: ObservableObject {
                 state = decoded
             } else { try write(state) }
         } catch { loadError = "Your saved records could not be opened. The original file is preserved. \(error.localizedDescription)" }
-        notifications.openDoses = { [weak self] ids in
+        notifications.openDoses = { [weak self] request in
             guard let self else { return }
+            // Repeated delivery/taps for the visible group must not reset its card.
+            if let current = self.activeReminder, current.isPreview == request.isPreview,
+               Set(current.doseIDs) == Set(request.doseIDs) { return }
+            self.reminderCards.enqueue(request)
             self.refresh()
-            let available = ids.filter { id in self.state.doses.contains { $0.id == id && $0.status.canRecord } }
-            if !available.isEmpty { self.activeReminder = ReminderSelection(doseIDs: available) }
         }
     }
     var now: Date { state.practiceClockEnabled ? state.practiceTime : Date() }
@@ -69,10 +74,43 @@ final class PillStore: ObservableObject {
             try change { MedicationEngine.catchUp(&$0, now: at) }
         } catch { self.error = error.localizedDescription }
         Task { await notifications.refreshPermission() }
+        presentDueReminderIfNeeded()
+    }
+    func becameActive() {
+        reminderCards.isForeground = true
+        if let current = activeReminder, !current.isPreview { reminderCards.didPresent(current.doseIDs) }
+        refresh()
+    }
+    func enteredBackground() {
+        reminderCards.enterBackground()
+        speech.stop()
+    }
+    func isShowingReminder(_ id: UUID) -> Bool {
+        reminderCards.isForeground && activeReminder?.id == id
+    }
+    func deferReminderCards(_ blocked: Bool, for id: UUID) {
+        if blocked { reminderBlockers.insert(id) }
+        else {
+            reminderBlockers.remove(id)
+            resumeReminderCards()
+        }
+    }
+    func resumeReminderCards() {
+        // Allow the current sheet dismissal to finish before presenting another.
+        Task { @MainActor in
+            await Task.yield()
+            presentDueReminderIfNeeded()
+        }
+    }
+    private func presentDueReminderIfNeeded() {
+        guard let request = reminderCards.next(state: state, now: now,
+            canPresent: loadError == nil && error == nil && activeReminder == nil && reminderBlockers.isEmpty) else { return }
+        activeReminder = ReminderSelection(doseIDs: request.doseIDs, isPreview: request.isPreview)
     }
     func openReminder(ids: [String]? = nil) {
         let ids = ids ?? nextGroup.map(\.id)
         guard !ids.isEmpty else { notice = "There are no unconfirmed medicines in this group."; return }
+        reminderCards.didPresent(ids)
         activeReminder = ReminderSelection(doseIDs: ids)
     }
     func confirm(_ ids: [String], method: String, skipped: Bool = false, reason: String = "") throws {

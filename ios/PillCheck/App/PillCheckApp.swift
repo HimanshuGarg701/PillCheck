@@ -3,13 +3,11 @@ import SwiftUI
 @main
 struct PillCheckApp: App {
     @StateObject private var store = PillStore()
-    @Environment(\.scenePhase) private var phase
     var body: some Scene {
         WindowGroup {
             RootView().environmentObject(store)
                 .tint(Theme.green)
                 .preferredColorScheme(.light)
-                .onChange(of: phase) { _, value in if value == .active { store.refresh() } }
         }
     }
 }
@@ -34,9 +32,20 @@ struct PrimaryButtonStyle: ButtonStyle {
     }
 }
 extension View {
+    func deferReminderCards(while presented: Bool) -> some View {
+        modifier(ReminderDeferral(isPresented: presented))
+    }
     func card(_ color: Color = .white) -> some View {
         padding(20).frame(maxWidth: .infinity, alignment: .leading)
             .background(color, in: RoundedRectangle(cornerRadius: 24))
+    }
+}
+private struct ReminderDeferral: ViewModifier {
+    @EnvironmentObject private var store: PillStore
+    @State private var id = UUID()
+    let isPresented: Bool
+    func body(content: Content) -> some View {
+        content.onChange(of: isPresented, initial: true) { _, value in store.deferReminderCards(value, for: id) }
     }
 }
 struct DisclaimerView: View {
@@ -59,6 +68,7 @@ struct WarningBox: View {
 
 struct RootView: View {
     @EnvironmentObject private var store: PillStore
+    @Environment(\.scenePhase) private var phase
     private let ticker = Timer.publish(every: 30, on: .main, in: .common).autoconnect()
     var body: some View {
         Group {
@@ -79,12 +89,16 @@ struct RootView: View {
             }
         }
         .foregroundStyle(Theme.ink)
-        .sheet(item: $store.activeReminder) { selection in ReminderView(selection: selection).environmentObject(store) }
+        .sheet(item: $store.activeReminder, onDismiss: { store.resumeReminderCards() }) { selection in ReminderView(selection: selection).environmentObject(store) }
         .alert("PillCheck", isPresented: Binding(get: { store.error != nil }, set: { if !$0 { store.error = nil } })) {
             Button("OK") { store.error = nil }
         } message: { Text(store.error ?? "") }
         .onReceive(ticker) { _ in store.refresh() }
-        .task { store.refresh() }
+        .onChange(of: phase, initial: true) { _, value in
+            if value == .active { store.becameActive() }
+            else if value == .background { store.enteredBackground() }
+        }
+        .onChange(of: store.error) { _, value in if value == nil { store.resumeReminderCards() } }
     }
 }
 
@@ -135,6 +149,7 @@ struct TodayView: View {
                 .toolbar { ToolbarItem(placement: .topBarTrailing) { Button { adding = true } label: { Image(systemName: "plus") }.accessibilityLabel("Add medicine") } }
                 .sheet(isPresented: $adding) { IntakeView() }
                 .sheet(isPresented: $showReplan) { if let id = store.lateDoseID { ReplanView(doseID: id) } }
+                .deferReminderCards(while: adding || showReplan)
         }
     }
     private var nextCard: some View {

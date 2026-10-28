@@ -69,6 +69,7 @@ struct MedicinesView: View {
                 .sheet(item: $savedReview) { review in
                     NavigationStack { ScrollView { VStack(alignment: .leading, spacing: 20) { WarningBox(text: "Historical snapshot. Run a new review for the current medication list."); MedicationReviewContent(review: review) }.padding(20) }.background(Theme.cream).navigationTitle("Saved review").navigationBarTitleDisplayMode(.inline).toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { savedReview = nil } } } }
                 }
+                .deferReminderCards(while: add || edit != nil || reviewing != nil || savedReview != nil || archiving != nil)
                 .alert("Archive this recorded regimen?", isPresented: Binding(get: { archiving != nil }, set: { if !$0 { archiving = nil } })) {
                     TextField("Reason", text: $archiveReason)
                     Button("Cancel", role: .cancel) { archiving = nil }
@@ -131,6 +132,7 @@ struct HistoryView: View {
                 }.padding(20)
             }.background(Theme.cream).navigationTitle("History").navigationBarTitleDisplayMode(.inline)
                 .sheet(item: $pdf) { file in ShareSheet(items: [file.url]) }
+                .deferReminderCards(while: pdf != nil)
                 .onChange(of: from) { _, new in if to < new { to = new } }
         }
     }

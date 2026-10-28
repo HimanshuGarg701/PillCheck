@@ -7,7 +7,7 @@ final class LocalReminders: NSObject, ObservableObject, UNUserNotificationCenter
     @Published var scheduledCount = 0
     @Published var coveredThrough: Date?
     @Published var schedulingError: String?
-    var openDoses: (([String]) -> Void)?
+    var openDoses: ((ReminderCardRequest) -> Void)?
     private var generation = 0
     private var work: Task<Void, Never>?
     private var queuedRevision = 0
@@ -92,18 +92,25 @@ final class LocalReminders: NSObject, ObservableObject, UNUserNotificationCenter
             schedulingError = nil
         } catch { schedulingError = error.localizedDescription }
     }
-    func sendTest() async throws {
+    func sendTest(doseIDs: [String]) async throws {
         let content = UNMutableNotificationContent()
         content.title = "PillCheck test reminder"
-        content.body = "Your iPhone delivered this local reminder. No internet or open app is needed after scheduling."
+        content.body = doseIDs.isEmpty ? "Your iPhone delivered this local reminder." : "Tap to preview your medication cards. Done in this preview will not change your history."
         content.sound = .default
+        content.categoryIdentifier = "DOSE"
+        content.userInfo = ["doseIDs": doseIDs, "preview": true]
         try await center.add(UNNotificationRequest(identifier: "pc.test", content: content, trigger: UNTimeIntervalNotificationTrigger(timeInterval: 10, repeats: false)))
     }
     nonisolated func userNotificationCenter(_ center: UNUserNotificationCenter, willPresent notification: UNNotification, withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {
+        let info = notification.request.content.userInfo
+        let request = ReminderCardRequest(doseIDs: info["doseIDs"] as? [String] ?? [], isPreview: info["preview"] as? Bool ?? false)
+        Task { @MainActor in self.openDoses?(request) }
         completionHandler([.banner, .sound, .list])
     }
     nonisolated func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse, withCompletionHandler completionHandler: @escaping () -> Void) {
-        let ids = response.notification.request.content.userInfo["doseIDs"] as? [String] ?? []
-        Task { @MainActor in self.openDoses?(ids); completionHandler() }
+        guard response.actionIdentifier == UNNotificationDefaultActionIdentifier || response.actionIdentifier == "REVIEW" else { completionHandler(); return }
+        let info = response.notification.request.content.userInfo
+        let request = ReminderCardRequest(doseIDs: info["doseIDs"] as? [String] ?? [], isPreview: info["preview"] as? Bool ?? false)
+        Task { @MainActor in self.openDoses?(request); completionHandler() }
     }
 }

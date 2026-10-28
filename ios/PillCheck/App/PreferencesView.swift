@@ -62,6 +62,7 @@ struct PreferencesView: View {
                 .onAppear { problems = store.state.problems.joined(separator: ", ") }
                 .sheet(isPresented: $shareRecords) { ShareSheet(items: [store.fileURL]) }
                 .sheet(isPresented: $showReplan) { if let id = store.lateDoseID { ReplanView(doseID: id) } }
+                .deferReminderCards(while: shareRecords || showReplan || lateIntro)
                 .confirmationDialog("Preview a 10 AM check-in?", isPresented: $lateIntro, titleVisibility: .visible) {
                     Button("Record sample check-in") {
                         do { try store.startLateExample(); showReplan = true } catch { store.error = error.localizedDescription }
@@ -90,7 +91,13 @@ struct NotificationSettings: View {
                 if let coverage = reminders.coveredThrough { Text("Queued through \(coverage.formatted(date: .abbreviated, time: .shortened)). Open PillCheck regularly to extend this queue.").font(.footnote) }
                 Text("iOS has a finite pending-alert queue. This app queues up to 60 dose alerts, plus a daily prompt to reopen it. Sound and presentation depend on your notification and Focus settings.").font(.footnote).foregroundStyle(.secondary)
                 Button("Send a test notification in 10 seconds") {
-                    Task { do { try await reminders.sendTest(); testMessage = "Test scheduled. Leave the app to check delivery in 10 seconds." } catch { testMessage = error.localizedDescription } }
+                    Task {
+                        do {
+                            let ids = store.nextGroup.map(\.id)
+                            try await reminders.sendTest(doseIDs: ids)
+                            testMessage = ids.isEmpty ? "Test scheduled. Leave the app to check delivery in 10 seconds." : "Test scheduled. Leave the app, then tap the notification to preview your cards. Done in this preview leaves your history unchanged."
+                        } catch { testMessage = error.localizedDescription }
+                    }
                 }.frame(minHeight: 56)
             }
             if reminders.permission == .denied {

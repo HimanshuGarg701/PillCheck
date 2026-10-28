@@ -5,6 +5,7 @@ import Foundation
 @MainActor
 final class SpeechService: ObservableObject {
     @Published var listening = false
+    @Published var preparing = false
     @Published var transcript = ""
     @Published var message: String?
     private let speaker = AVSpeechSynthesizer()
@@ -13,6 +14,7 @@ final class SpeechService: ObservableObject {
     private var task: SFSpeechRecognitionTask?
     private var timeout: Task<Void, Never>?
     private var tapInstalled = false
+    private var sessionID: UUID?
 
     func speak(_ text: String, language: String) {
         stopListening()
@@ -27,12 +29,20 @@ final class SpeechService: ObservableObject {
     func stop() { speaker.stopSpeaking(at: .immediate); stopListening() }
     func listen(language: String, onCommand: @escaping (String) -> Void) async {
         stop()
+        let id = UUID()
+        sessionID = id
+        preparing = true
+        defer { if sessionID == id { preparing = false } }
         message = nil
+        transcript = ""
         let speech = await withCheckedContinuation { continuation in
             SFSpeechRecognizer.requestAuthorization { continuation.resume(returning: $0) }
         }
+        guard sessionID == id, !Task.isCancelled else { return }
+        guard speech == .authorized else { message = "Allow speech access in Settings, or use the large buttons."; return }
         let mic = await AVAudioApplication.requestRecordPermission()
-        guard speech == .authorized, mic else { message = "Allow microphone and speech access in Settings, or use the large buttons."; return }
+        guard sessionID == id, !Task.isCancelled else { return }
+        guard mic else { message = "Allow microphone access in Settings, or use the large buttons."; return }
         guard let recognizer = SFSpeechRecognizer(locale: Locale(identifier: language)), recognizer.isAvailable, recognizer.supportsOnDeviceRecognition else {
             message = "On-device speech is unavailable for this language. Use the buttons; your audio will not be sent to a speech server."
             return
@@ -56,14 +66,13 @@ final class SpeechService: ObservableObject {
             transcript = ""
             task = recognizer.recognitionTask(with: request) { [weak self] result, error in
                 Task { @MainActor in
-                    guard let self else { return }
+                    guard let self, self.sessionID == id, self.listening else { return }
                     if let result {
                         self.transcript = result.bestTranscription.formattedString
                         if result.isFinal {
-                            let words = self.transcript.lowercased().trimmingCharacters(in: .punctuationCharacters.union(.whitespacesAndNewlines))
+                            let command = VoiceConfirmationCommand.parse(self.transcript, isFinal: result.isFinal)
                             self.stopListening()
-                            if ["done", "listo", "हो गया"].contains(words) { onCommand("done") }
-                            else if ["next", "siguiente", "अगला"].contains(words) { onCommand("next") }
+                            if let command { onCommand(command.rawValue) }
                             else { self.message = "No confirmation recorded. Say only Done or Next, or use a button." }
                         }
                     } else if let error { self.stopListening(); self.message = error.localizedDescription }
@@ -71,17 +80,20 @@ final class SpeechService: ObservableObject {
             }
             timeout = Task { [weak self] in
                 try? await Task.sleep(for: .seconds(6))
-                guard !Task.isCancelled, let self else { return }
+                guard !Task.isCancelled, let self, self.sessionID == id else { return }
                 self.engine.stop()
                 self.request?.endAudio()
                 try? await Task.sleep(for: .seconds(4))
-                guard !Task.isCancelled, self.listening else { return }
+                guard !Task.isCancelled, self.sessionID == id, self.listening else { return }
                 self.stopListening()
                 self.message = "No confirmation recorded. Try again, or use the large buttons."
             }
         } catch { stopListening(); message = error.localizedDescription }
     }
     private func stopListening() {
+        // Invalidate first: cancellation itself can deliver an old final result.
+        sessionID = nil
+        preparing = false
         timeout?.cancel(); timeout = nil
         engine.stop()
         if tapInstalled { engine.inputNode.removeTap(onBus: 0); tapInstalled = false }

@@ -14,6 +14,10 @@ struct ReminderView: View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 22) {
+                    if selection.isPreview {
+                        Text("Notification preview · Done will not change your history.")
+                            .font(.subheadline.weight(.medium)).multilineTextAlignment(.center).card(Theme.sage)
+                    }
                     if let dose = currentDose, let med = store.medicine(dose.medicationId) {
                         Text("MEDICINE \(index + 1) OF \(selection.doseIDs.count)").font(.subheadline.weight(.semibold)).tracking(1).foregroundStyle(Theme.green)
                         Image(systemName: "pills").font(.system(size: 56)).foregroundStyle(Theme.green).frame(width: 110, height: 110).background(Theme.sage, in: RoundedRectangle(cornerRadius: 30)).accessibilityHidden(true)
@@ -34,15 +38,17 @@ struct ReminderView: View {
                         if index < selection.doseIDs.count - 1 {
                             Button { next() } label: { Label("Next medicine", systemImage: "arrow.right") }.buttonStyle(PrimaryButtonStyle())
                         } else {
-                            Button { finish(method: "button") } label: { Label(selection.doseIDs.count == 1 ? "Done — already taken" : "Done — all already taken", systemImage: "checkmark") }.buttonStyle(PrimaryButtonStyle()).accessibilityIdentifier("confirm-dose")
+                            Button { finish(method: "button") } label: { Label(selection.isPreview ? "Done — finish preview" : selection.doseIDs.count == 1 ? "Done — already taken" : "Done — all already taken", systemImage: "checkmark") }.buttonStyle(PrimaryButtonStyle()).accessibilityIdentifier("confirm-dose")
                         }
                         VoiceControl(speech: store.speech, language: store.state.language) { command in
                             if command == "next" { next() }
                             else if index == selection.doseIDs.count - 1 { finish(method: "voice") }
                             else { error = "Review each card with Next. Say Done on the final card to confirm the whole group." }
                         }
-                        Button("Record this dose as skipped") { skipping = true }.frame(minHeight: 56)
-                        Text("Done on the last card records all \(selection.doseIDs.count) medicine\(selection.doseIDs.count == 1 ? "" : "s") at the actual confirmation time\(store.state.practiceClockEnabled ? " shown in the reminder preview" : "").").font(.footnote).foregroundStyle(.secondary).multilineTextAlignment(.center)
+                        if !selection.isPreview {
+                            Button("Record this dose as skipped") { store.speech.stop(); skipping = true }.frame(minHeight: 56)
+                            Text("Done on the last card records all \(selection.doseIDs.count) medicine\(selection.doseIDs.count == 1 ? "" : "s") at the actual confirmation time\(store.state.practiceClockEnabled ? " shown in the reminder preview" : "").").font(.footnote).foregroundStyle(.secondary).multilineTextAlignment(.center)
+                        }
                         DisclaimerView()
                     } else {
                         ContentUnavailableView("This dose is already recorded", systemImage: "checkmark.circle", description: Text("Your history is preserved."))
@@ -68,6 +74,13 @@ struct ReminderView: View {
     }
     private func next() { guard index < selection.doseIDs.count - 1 else { return }; store.speech.stop(); index += 1; spoken = ""; error = nil }
     private func finish(method: String) {
+        guard store.isShowingReminder(selection.id) else { return }
+        if selection.isPreview {
+            store.speech.stop()
+            store.activeReminder = nil
+            store.notice = "Notification preview completed. Your medication history is unchanged."
+            return
+        }
         do { try store.confirm(selection.doseIDs, method: method) }
         catch { self.error = error.localizedDescription }
     }
@@ -79,7 +92,12 @@ struct ReminderView: View {
             store.speech.speak(spoken, language: store.state.language)
             return
         }
-        do { spoken = try await store.spoken(med); store.speech.speak(spoken, language: store.state.language) }
+        do {
+            let text = try await store.spoken(med)
+            guard store.isShowingReminder(selection.id), currentDose?.medicationId == med.id else { return }
+            spoken = text
+            store.speech.speak(spoken, language: store.state.language)
+        }
         catch { self.error = "The model reminder is unavailable. Your recorded dose remains visible above. " + error.localizedDescription }
     }
 }
@@ -91,8 +109,8 @@ struct VoiceControl: View {
     var body: some View {
         VStack(spacing: 10) {
             Button { Task { await speech.listen(language: language, onCommand: command) } } label: {
-                Label(speech.listening ? "Listening… say Done or Next" : "Confirm by voice", systemImage: speech.listening ? "waveform" : "mic")
-            }.buttonStyle(PrimaryButtonStyle(secondary: true)).disabled(speech.listening)
+                Label(speech.listening ? "Listening… say Done or Next" : speech.preparing ? "Preparing microphone…" : "Confirm by voice", systemImage: speech.listening ? "waveform" : "mic")
+            }.buttonStyle(PrimaryButtonStyle(secondary: true)).disabled(speech.listening || speech.preparing)
             if !speech.transcript.isEmpty { Text(speech.transcript).font(.subheadline).foregroundStyle(.secondary) }
             if let message = speech.message { WarningBox(text: message) }
         }

@@ -32,6 +32,10 @@ The late-dose replan workflow is limited to the seeded metformin scenario. Its 1
 
 After permission is granted, iOS schedules notifications on the device. Alerts occur at the recorded time, after 15 minutes, then every 30 minutes until confirmation, skipping, or the selected window ends. Confirming or changing a record reconciles queued alerts. Lock-screen messages omit medicine names.
 
+Tapping a notification opens its medication cards. Opening the app while a dose is due also opens the cards, and foreground notifications do the same. Cards wait for an open form or review to close. Dismissing a card leaves the dose unconfirmed without reopening it on every timer tick. Review simultaneous medicines with **Next medicine**, then tap **Done — all already taken** or **Confirm by voice** and say **Done** on the final card. Voice input starts only when requested and requires microphone/speech permission and available on-device recognition.
+
+The test notification in Preferences opens a labeled preview of the next unconfirmed group. **Done — finish preview** checks the interaction without changing dose history.
+
 The app queues at most 60 dose alerts and displays the scheduled-through date. Opening it replenishes that queue. A daily generic reminder asks the user to reopen the app when the queue is limited. This is a finite coverage window, not an unlimited guarantee of offline reminders. Sound and presentation depend on iOS notification and Focus settings. Real-device restart and offline delivery remain to be tested.
 
 ## Meta backend

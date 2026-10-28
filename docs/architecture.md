@@ -12,11 +12,15 @@ SwiftUI screens implement intake/review, grouped reminders, medicines, history, 
 
 `SpeechService` uses AVSpeechSynthesizer for playback and SFSpeechRecognizer with on-device recognition required for confirmation. Permission is requested only when the user invokes voice control. Only a final exact Done/Next command or its supported Spanish/Hindi equivalent is accepted. Timeout and recognition failure preserve records. Buttons remain available.
 
+Each listening attempt has a session identifier. Closing or changing cards, opening the skipped-dose dialog, or backgrounding the app invalidates that session before stopping recognition. Late permission callbacks and recognition results cannot resume a cancelled session or confirm a dose. Pending generated reminder text is also checked against the visible card before playback.
+
 ## Reminders
 
 `ReminderPlanner` produces a chronological queue from recorded doses and the next 30 days of the regimen. It groups simultaneous doses and creates the required 0, 15, 45, 75… minute cadence within the configured window. It selects at most 60 requests, leaving room for a test notification and a daily generic queue-refresh prompt.
 
 `LocalReminders` submits local calendar notifications to UNUserNotificationCenter. It serializes reconciliation so an older asynchronous update cannot cancel a newer queue. Completion, skipping, regimen changes, and timing changes reconcile pending and delivered alerts. Notification taps open review cards; they do not silently confirm medication. The pending coverage horizon is visible in Preferences.
+
+`ReminderCardQueue` routes notification taps and foreground deliveries to unconfirmed records. It defers presentation until the app is active and other forms, review sheets, exports, or alerts have closed. On launch/foreground and periodic refresh, it automatically presents pending groups whose time has arrived and whose reminder window remains open. Already-presented doses are suppressed for the current foreground session; a later notification can request them again. Completed, cancelled, unknown, duplicate, and future identifiers are filtered. The test notification carries a preview flag; its Done action exits without calling the record-confirmation path.
 
 Already-scheduled local notifications do not require a running application or network. The finite queue is replenished when the app opens; a daily generic prompt helps avoid silent exhaustion. iOS permission, Focus, power/device state, and physical restart behavior still require device verification. There is no server push workflow or APNs credential.
 
