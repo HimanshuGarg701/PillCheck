@@ -54,3 +54,5 @@ The native prescription form was also checked against production: a later AI res
 ## Manual ingredient identification — October 28, 2026
 
 Typing a medicine name now starts automatic ingredient identification using Meta with server-retrieved RxNorm evidence. The iOS form displays the ingredient for review instead of requiring users to know it. Reference lookups were verified live for Glucophage, Advil, and the amlodipine/atorvastatin combination. Seven added backend tests cover exact matches, combinations, broad-brand ambiguity, outages, invalid input, and unsupported model output. Current automated results: 30 Node tests and 11 Swift tests passing; native Simulator and backend builds pass.
+
+Native verification against production: entering Glucophage filled metformin with completed Meta verification. Changing names while a lookup was pending correctly ended with Tylenol/acetaminophen, without retaining the earlier ingredient. The correction control exposed an editable label-ingredient field. These were unsaved form checks; no medication or dose record was added.
