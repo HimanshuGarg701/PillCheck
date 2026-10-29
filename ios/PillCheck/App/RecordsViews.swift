@@ -16,10 +16,10 @@ struct MedicinesView: View {
                     Text("Earlier regimens stay in your history.").foregroundStyle(.secondary)
                     ForEach(store.state.medications.filter { $0.status == .active }) { med in
                         VStack(alignment: .leading, spacing: 16) {
-                            HStack { Image(systemName: "pills").font(.title).foregroundStyle(Theme.green); Spacer(); Text("Active regimen").font(.caption).foregroundStyle(Theme.green) }
+                            HStack { Image(systemName: med.isLiquid ? "drop.fill" : "pills").font(.title).foregroundStyle(Theme.green); Spacer(); Text("Active regimen").font(.caption).foregroundStyle(Theme.green) }
                             Text(med.name).font(.title2.bold())
-                            Text("\(med.ingredient) · \(PillTime.number(med.strengthMg)) mg").foregroundStyle(.secondary)
-                            LabeledContent("Recorded dose", value: "\(PillTime.number(med.doseQuantity)) \(med.doseUnit)")
+                            Text("\(med.ingredient) · \(med.strengthText)").foregroundStyle(.secondary)
+                            LabeledContent("Recorded dose", value: "\(med.doseText)")
                             LabeledContent("Schedule", value: med.times.joined(separator: " · "))
                             LabeledContent("Daily ingredient", value: "\(PillTime.number(med.dailyMg)) mg")
                             Text(med.instructions).font(.subheadline)
@@ -54,7 +54,7 @@ struct MedicinesView: View {
                     if archived.isEmpty { Text("Your archived records will appear here. They are never deleted.").foregroundStyle(.secondary) }
                     ForEach(archived) { med in
                         VStack(alignment: .leading, spacing: 8) {
-                            Text("\(med.name) · \(PillTime.number(med.strengthMg)) mg").font(.headline)
+                            Text("\(med.name) · \(med.strengthText)").font(.headline)
                             Text("\(med.startDate.formatted(date: .abbreviated, time: .omitted)) – \(med.endDate?.formatted(date: .abbreviated, time: .omitted) ?? "—")")
                             Text(PillCheckCopy.recordText(med.archiveReason ?? "Archived")).foregroundStyle(.secondary)
                         }.card()

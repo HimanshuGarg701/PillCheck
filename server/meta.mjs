@@ -36,6 +36,7 @@ const schemas = {
     name: nullableText,
     ingredient: nullableText,
     strengthMg: nullableNumber,
+    strengthVolumeMl: nullableNumber,
     doseQuantity: nullableNumber,
     doseUnit: nullableText,
     frequency: nullableText,
@@ -100,7 +101,7 @@ export function makeTask(body, reviewContext = null) {
     )
       throw new RequestError("Provide a label image or label text.");
     const prompt =
-      "Extract medication data visible on this medicine label. Convert strength to mg only if the conversion is unambiguous. Include times only if explicit clock times are printed. List every missing or uncertain field in uncertainFields; use null for missing scalar fields. Preserve frequency and timing instructions. The user must review all fields, and must supply missing schedule times. Your explanation should describe extraction quality, not advise treatment.";
+      "Extract medication data visible on this medicine label. Convert strength to mg only if the conversion is unambiguous. For pills, strengthMg is mg per pill and strengthVolumeMl is null. For liquids, preserve the label concentration: for example 250 mg / 5 mL means strengthMg 250 and strengthVolumeMl 5. Liquid doseQuantity is the explicitly prescribed volume in mL and doseUnit is mL. Never copy the concentration volume into doseQuantity unless it is also explicitly prescribed. If concentration or dose volume is missing or ambiguous, return null and flag it for review. Include times only if explicit clock times are printed. List every missing or uncertain field in uncertainFields; use null for missing scalar fields. Preserve frequency and timing instructions. The user must review all fields, and must supply missing schedule times. Your explanation should describe extraction quality, not advise treatment.";
     content = [
       {
         type: "text",
@@ -395,6 +396,13 @@ async function inferTask(
     for (const k of ["strengthMg", "doseQuantity"])
       if (data[k] !== null && (!Number.isFinite(data[k]) || data[k] <= 0))
         throw new RequestError("Confirm the dose manually.", 502);
+    if (
+      data.strengthVolumeMl != null &&
+      (!Number.isFinite(data.strengthVolumeMl) ||
+        data.strengthVolumeMl <= 0 ||
+        data.strengthVolumeMl > 1000)
+    )
+      throw new RequestError("Confirm the liquid strength manually.", 502);
   }
   if (
     body.task === "speak" &&

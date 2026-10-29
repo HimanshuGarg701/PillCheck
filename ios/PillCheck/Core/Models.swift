@@ -54,7 +54,19 @@ struct Medication: Identifiable, Codable, Equatable {
     var minSpacingHours: Double? = nil
     var source: String = "manual-reviewed"
     var archiveReason: String? = nil
-    var dailyMg: Double { strengthMg * doseQuantity * Double(times.count) }
+    var strengthVolumeMl: Double? = nil
+    static func isLiquidUnit(_ unit: String) -> Bool {
+        ["ml", "milliliter", "milliliters", "millilitre", "millilitres"].contains(unit.trimmingCharacters(in: .whitespacesAndNewlines).lowercased())
+    }
+    var isLiquid: Bool { Self.isLiquidUnit(doseUnit) }
+    var dailyMg: Double { strengthMg / (isLiquid ? strengthVolumeMl ?? 1 : 1) * doseQuantity * Double(times.count) }
+    var strengthText: String {
+        isLiquid ? "\(PillTime.number(strengthMg)) mg / \(PillTime.number(strengthVolumeMl ?? 1)) mL" : "\(PillTime.number(strengthMg)) mg"
+    }
+    var doseText: String {
+        let plural = doseQuantity != 1 && ["tablet", "capsule", "pill", "caplet", "softgel", "lozenge"].contains(doseUnit)
+        return "\(PillTime.number(doseQuantity)) \(isLiquid ? "mL" : doseUnit + (plural ? "s" : ""))"
+    }
 }
 
 struct DoseEvent: Identifiable, Codable, Equatable {
@@ -142,6 +154,7 @@ struct ScanResult: Codable {
     var explanation: String
     var model: String?
     var source: String?
+    var strengthVolumeMl: Double? = nil
 }
 
 struct ReplanProposal: Codable {

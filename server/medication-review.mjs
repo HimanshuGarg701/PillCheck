@@ -1,4 +1,4 @@
-import { canonical, isHighRisk } from "../shared/domain.js";
+import { canonical, isHighRisk, isLiquidUnit } from "../shared/domain.js";
 
 const object = (properties) => ({
   type: "object",
@@ -96,6 +96,21 @@ export function validateReviewInput(body) {
       );
     out.strengthMg = m.strengthMg;
     out.doseQuantity = m.doseQuantity;
+    const liquid = isLiquidUnit(out.doseUnit);
+    if (
+      m.strengthVolumeMl != null &&
+      (!liquid ||
+        !Number.isFinite(m.strengthVolumeMl) ||
+        m.strengthVolumeMl <= 0 ||
+        m.strengthVolumeMl > 1000)
+    )
+      throw new ReviewError(
+        "Confirm the liquid strength in mg and mL before AI review.",
+      );
+    if (liquid) {
+      out.doseUnit = "mL";
+      out.strengthVolumeMl = m.strengthVolumeMl ?? 1;
+    }
     out.times = [...m.times].sort();
     out.highRisk = isHighRisk(m);
     if (m.endDate != null) {

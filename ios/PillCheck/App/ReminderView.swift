@@ -20,10 +20,10 @@ struct ReminderView: View {
                     }
                     if let dose = currentDose, let med = store.medicine(dose.medicationId) {
                         Text("MEDICINE \(index + 1) OF \(selection.doseIDs.count)").font(.subheadline.weight(.semibold)).tracking(1).foregroundStyle(Theme.green)
-                        Image(systemName: "pills").font(.system(size: 56)).foregroundStyle(Theme.green).frame(width: 110, height: 110).background(Theme.sage, in: RoundedRectangle(cornerRadius: 30)).accessibilityHidden(true)
+                        Image(systemName: med.isLiquid ? "drop.fill" : "pills").font(.system(size: 56)).foregroundStyle(Theme.green).frame(width: 110, height: 110).background(Theme.sage, in: RoundedRectangle(cornerRadius: 30)).accessibilityHidden(true)
                         Text(med.name).font(.system(.largeTitle, design: .rounded, weight: .bold)).multilineTextAlignment(.center)
-                        Text("\(PillTime.number(med.strengthMg)) mg").font(.title2).foregroundStyle(.secondary)
-                        Text("Recorded dose: \(PillTime.number(med.doseQuantity)) \(med.doseUnit)").font(.title2.bold()).multilineTextAlignment(.center)
+                        Text("\(med.strengthText)").font(.title2).foregroundStyle(.secondary)
+                        Text("Recorded dose: \(med.doseText)").font(.title2.bold()).multilineTextAlignment(.center)
                         Text(dose.scheduledAt.formatted(date: .omitted, time: .shortened)).font(.headline)
                         Text(med.instructions).multilineTextAlignment(.center)
                         if store.now.timeIntervalSince(dose.scheduledAt) > 30 * 60 {
@@ -143,7 +143,7 @@ struct ReplanView: View {
                                 }
                             }
                             Text(result.explanation).font(.title3)
-                            Text("Quantity remains \(PillTime.number(med.doseQuantity)) \(med.doseUnit). The explanation and earlier time are saved in history.").foregroundStyle(.secondary)
+                            Text("Quantity remains \(med.doseText). The explanation and earlier time are saved in history.").foregroundStyle(.secondary)
                             Button("Read explanation aloud") { store.speech.speak(result.explanation, language: store.state.language) }.buttonStyle(PrimaryButtonStyle())
                         } else {
                             WarningBox(text: "This sample uses a 10-hour interval to preview timing changes. It is not a clinical dosing rule. Confirm schedule changes with your pharmacist.")

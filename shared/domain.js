@@ -93,6 +93,14 @@ export function validateMedication(input) {
   )
     throw new Error("Confirm the dose quantity.");
   if (
+    input.strengthVolumeMl != null &&
+    (!isLiquidUnit(input.doseUnit) ||
+      !Number.isFinite(input.strengthVolumeMl) ||
+      input.strengthVolumeMl <= 0 ||
+      input.strengthVolumeMl > 1000)
+  )
+    throw new Error("Confirm the liquid strength in mg and mL.");
+  if (
     !Array.isArray(input.times) ||
     !input.times.length ||
     input.times.length > 8 ||
@@ -114,8 +122,15 @@ export function validateMedication(input) {
     highRisk: isHighRisk(input),
   };
 }
+export const isLiquidUnit = (unit) =>
+  ["ml", "milliliter", "milliliters", "millilitre", "millilitres"].includes(
+    String(unit).trim().toLowerCase(),
+  );
 export const dailyMg = (med) =>
-  med.strengthMg * med.doseQuantity * med.times.length;
+  (med.strengthMg /
+    (isLiquidUnit(med.doseUnit) ? (med.strengthVolumeMl ?? 1) : 1)) *
+  med.doseQuantity *
+  med.times.length;
 export function checkRisks(
   candidate,
   medications,

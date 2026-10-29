@@ -2,48 +2,6 @@ import SwiftUI
 import PhotosUI
 import UniformTypeIdentifiers
 
-struct MedicineDraft: Identifiable, Equatable {
-    var id = UUID()
-    var original: Medication?
-    var name = ""
-    var ingredient = ""
-    var strength = ""
-    var quantity = ""
-    var unit = ""
-    var frequency = ""
-    var times = ""
-    var instructions = ""
-    var riskClass = ""
-    var highRisk = false
-    var startDate = Date()
-    var source = "manual-reviewed"
-    var explanation = ""
-    var uncertain: [String] = []
-    init(startDate: Date = Date()) { self.startDate = startDate }
-    init(medicine: Medication, now: Date) {
-        original = medicine
-        name = medicine.name; ingredient = medicine.ingredient
-        strength = String(medicine.strengthMg); quantity = String(medicine.doseQuantity)
-        unit = medicine.doseUnit; frequency = medicine.frequency
-        times = medicine.times.joined(separator: ", "); instructions = medicine.instructions
-        riskClass = medicine.riskClass; highRisk = MedicationEngine.isHighRisk(medicine)
-        startDate = now; source = "manual-reviewed"
-    }
-    init(scan: ScanResult, now: Date) {
-        name = scan.name ?? ""; ingredient = scan.ingredient ?? ""
-        strength = scan.strengthMg.map(String.init(describing:)) ?? ""
-        quantity = scan.doseQuantity.map(String.init(describing:)) ?? ""
-        unit = scan.doseUnit ?? ""; frequency = scan.frequency ?? ""
-        times = scan.times.joined(separator: ", "); instructions = scan.instructions ?? ""
-        startDate = now; source = "meta-reviewed"
-        explanation = scan.explanation; uncertain = scan.uncertainFields
-    }
-    func medication() throws -> Medication {
-        guard let mg = Double(strength.replacingOccurrences(of: ",", with: ".")), let count = Double(quantity.replacingOccurrences(of: ",", with: ".")) else { throw PillCheckError("Confirm the strength and quantity as numbers.") }
-        return try MedicationEngine.validate(Medication(id: original?.id ?? id.uuidString, name: name, ingredient: ingredient, strengthMg: mg, doseQuantity: count, doseUnit: unit, frequency: frequency, times: times.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }, instructions: instructions, riskClass: riskClass, startDate: startDate, highRisk: highRisk, source: source))
-    }
-}
-
 struct SampleMedicineLabel: Identifiable {
     let id: String
     let name: String
@@ -239,6 +197,11 @@ struct MedicineEditor: View {
     var body: some View {
         NavigationStack {
             Form {
+                Section {
+                    Toggle(isOn: $draft.isLiquid) {
+                        Label("Liquid medicine", systemImage: draft.isLiquid ? "drop.fill" : "pills")
+                    }.accessibilityIdentifier("liquid-medicine")
+                }
                 if draft.source == "meta-reviewed" {
                     Section("Read live by Muse Spark 1.3") {
                         Text(draft.explanation)
@@ -249,16 +212,18 @@ struct MedicineEditor: View {
                     field("Medicine name", text: nameBinding).accessibilityIdentifier("medicine-name")
                     Text("Enter the brand or generic name from your label. The name is sent to Meta and U.S. medicine references to identify the ingredient.").font(.footnote).foregroundStyle(.secondary)
                     ingredientDetails
-                    field("Strength (mg)", text: $draft.strength).keyboardType(.decimalPad)
-                    field("Quantity per dose", text: $draft.quantity).keyboardType(.decimalPad)
-                    field("Dose unit (tablet, capsule…)", text: $draft.unit)
+                    if draft.isLiquid {
+                        field("Bottle strength", text: $draft.liquidStrength, placeholder: "e.g. 250 mg / 5 mL").accessibilityIdentifier("liquid-strength")
+                        field("Amount per dose (mL)", text: $draft.liquidAmount).keyboardType(.decimalPad).accessibilityIdentifier("liquid-amount")
+                    } else {
+                        field("Strength (mg)", text: $draft.strength).keyboardType(.decimalPad)
+                        field("Dose", text: $draft.pillDose, placeholder: "e.g. 1 tablet or 2 capsules").accessibilityIdentifier("pill-dose")
+                    }
                     field("Frequency (e.g. twice daily)", text: $draft.frequency)
                     field("Times (e.g. 08:00, 18:00)", text: $draft.times).keyboardType(.numbersAndPunctuation)
                     DatePicker("Start date", selection: $draft.startDate, in: PillTime.day(store.now)..., displayedComponents: .date)
                     TextField("Label instructions", text: $draft.instructions, axis: .vertical)
                     field("Medication class, if known", text: $draft.riskClass)
-                    Toggle("High-risk / specialist timing", isOn: $draft.highRisk)
-                    Text("Recognized high-risk medicines are protected even if this switch is off. This form records a prescription; it does not choose a dose.").font(.footnote).foregroundStyle(.secondary)
                 }
                 Section {
                     Toggle("I checked every field against my prescription", isOn: $reviewed)
@@ -342,10 +307,10 @@ struct MedicineEditor: View {
             ingredientIssue = "Ingredient lookup could not complete. Retry, or enter the ingredient from your label."
         }
     }
-    private func field(_ label: String, text: Binding<String>) -> some View {
+    private func field(_ label: String, text: Binding<String>, placeholder: String? = nil) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             Text(label).font(.caption).foregroundStyle(.secondary)
-            TextField(label, text: text).textInputAutocapitalization(.never).autocorrectionDisabled().accessibilityLabel(label)
+            TextField(placeholder ?? label, text: text).textInputAutocapitalization(.never).autocorrectionDisabled().accessibilityLabel(label)
         }.padding(.vertical, 4)
     }
     private func clearCheck() {
@@ -357,7 +322,7 @@ struct MedicineEditor: View {
         let request = UUID(); reviewRequest = request
         do {
             let m = try draft.medication()
-            if draft.original == nil && store.state.medications.contains(where: { $0.status == .active && MedicationEngine.canonical($0.name) == MedicationEngine.canonical(m.name) && $0.strengthMg == m.strengthMg && $0.doseQuantity == m.doseQuantity && $0.times == m.times }) {
+            if draft.original == nil && store.state.medications.contains(where: { $0.status == .active && MedicationEngine.canonical($0.name) == MedicationEngine.canonical(m.name) && $0.strengthMg == m.strengthMg && $0.doseQuantity == m.doseQuantity && $0.doseUnit == m.doseUnit && $0.strengthVolumeMl == m.strengthVolumeMl && $0.times == m.times }) {
                 error = "This exact medicine and schedule are already recorded. No duplicate was added."
                 return
             }

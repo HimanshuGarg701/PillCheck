@@ -18,7 +18,12 @@ enum MedicationEngine {
             guard !value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty, value.count <= 100 else { throw PillCheckError("Confirm the \(title).") }
         }
         guard m.strengthMg.isFinite, m.strengthMg > 0, m.strengthMg <= 100_000 else { throw PillCheckError("Confirm the strength in mg.") }
-        guard m.doseQuantity.isFinite, m.doseQuantity > 0, m.doseQuantity <= 100 else { throw PillCheckError("Confirm the quantity per dose.") }
+        guard m.doseQuantity.isFinite, m.doseQuantity > 0, m.doseQuantity <= 100 else { throw PillCheckError(m.isLiquid ? "Confirm the amount per dose in mL." : "Confirm the recorded pill dose.") }
+        if let ml = m.strengthVolumeMl {
+            guard m.isLiquid, ml.isFinite, ml > 0, ml <= 1_000 else { throw PillCheckError("Confirm the bottle strength in mg and mL.") }
+        }
+        if m.isLiquid { m.doseUnit = "mL" }
+        guard m.dailyMg.isFinite else { throw PillCheckError("Confirm the recorded strength and dose.") }
         guard !m.times.isEmpty, m.times.count <= 8, Set(m.times).count == m.times.count,
               m.times.allSatisfy({ PillTime.at(m.startDate, $0) != nil }) else { throw PillCheckError("Enter distinct times in 24-hour format, for example 08:00, 18:00.") }
         m.name = m.name.trimmingCharacters(in: .whitespacesAndNewlines)

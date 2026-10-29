@@ -27,6 +27,38 @@ const body = {
   candidate: med("new", "Glucophage", "metformin"),
   medications: [med("old", "Metformin")],
 };
+test("liquid review preserves concentration separately from the prescribed volume", () => {
+  const candidate = {
+    ...med("liquid", "Sample liquid"),
+    strengthMg: 250,
+    strengthVolumeMl: 5,
+    doseQuantity: 7.5,
+    doseUnit: "mL",
+  };
+  const context = validateReviewInput({ candidate, medications: [] });
+  assert.equal(context.candidate.strengthMg, 250);
+  assert.equal(context.candidate.strengthVolumeMl, 5);
+  assert.equal(context.candidate.doseQuantity, 7.5);
+  assert.equal(context.candidate.doseUnit, "mL");
+  for (const strengthVolumeMl of [0, -5, "5", Infinity, 1001]) {
+    assert.throws(
+      () =>
+        validateReviewInput({
+          candidate: { ...candidate, strengthVolumeMl },
+          medications: [],
+        }),
+      /liquid strength/,
+    );
+  }
+  assert.throws(
+    () =>
+      validateReviewInput({
+        candidate: { ...candidate, doseUnit: "tablet" },
+        medications: [],
+      }),
+    /liquid strength/,
+  );
+});
 const mockReferences = async (raw) => {
   const url = new URL(raw);
   if (url.hostname === "rxnav.nlm.nih.gov") {

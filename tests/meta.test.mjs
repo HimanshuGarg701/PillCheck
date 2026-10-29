@@ -109,6 +109,62 @@ test("uploaded label data is submitted as an image, with an extraction schema", 
     /PNG/,
   );
 });
+test("liquid scans carry concentration without guessing the prescribed mL amount", async () => {
+  const task = makeTask({
+    task: "scan",
+    text: "Sample liquid: 250 mg / 5 mL.",
+  });
+  assert.ok(task.schema.required.includes("strengthVolumeMl"));
+  assert.match(
+    task.content[0].text,
+    /Never copy the concentration volume into doseQuantity/,
+  );
+  const extracted = {
+    name: "Sample liquid",
+    ingredient: null,
+    strengthMg: 250,
+    strengthVolumeMl: 5,
+    doseQuantity: null,
+    doseUnit: "mL",
+    frequency: null,
+    times: [],
+    instructions: null,
+    uncertainFields: ["doseQuantity", "frequency", "times"],
+    explanation: "Prescribed volume is not visible.",
+  };
+  const invoke = (data) =>
+    runTask(
+      { task: "scan", text: "Sample liquid: 250 mg / 5 mL." },
+      {
+        apiKey: "test",
+        fetchImpl: async () =>
+          Response.json({
+            output: [
+              {
+                type: "message",
+                content: [{ type: "output_text", text: JSON.stringify(data) }],
+              },
+            ],
+          }),
+      },
+    );
+  const result = await invoke(extracted);
+  assert.equal(result.strengthMg, 250);
+  assert.equal(result.strengthVolumeMl, 5);
+  assert.equal(result.doseQuantity, null);
+  await assert.rejects(
+    invoke({ ...extracted, strengthVolumeMl: 0 }),
+    /liquid strength/,
+  );
+});
+test("liquid spoken reminders retain the recorded mL volume", () => {
+  const task = makeTask({
+    task: "speak",
+    language: "en-US",
+    medications: [{ name: "Sample liquid", doseQuantity: 7.5, doseUnit: "mL" }],
+  });
+  assert.match(task.content, /"doseQuantity":7.5,"doseUnit":"mL"/);
+});
 test("high-risk medicines cannot reach model-based replanning", () => {
   for (const name of [
     "Warfarin",

@@ -32,8 +32,8 @@ enum HistoryPDF {
             text("Medicines and earlier regimens", size: 17, bold: true)
             for med in state.medications {
                 if y > 620 { newPage() }
-                text("\(med.name) · \(PillTime.number(med.strengthMg)) mg", size: 14, bold: true)
-                text("Ingredient: \(med.ingredient). Recorded dose: \(PillTime.number(med.doseQuantity)) \(med.doseUnit). \(med.frequency), at \(med.times.joined(separator: ", ")).")
+                text("\(med.name) · \(med.strengthText)", size: 14, bold: true)
+                text("Ingredient: \(med.ingredient). Recorded dose: \(med.doseText). \(med.frequency), at \(med.times.joined(separator: ", ")).")
                 text("Started \(med.startDate.formatted(date: .abbreviated, time: .omitted)) · \(med.endDate.map { "Ended " + $0.formatted(date: .abbreviated, time: .omitted) } ?? "Ongoing")")
             }
             text("Daily dose record", size: 17, bold: true)
@@ -41,7 +41,7 @@ enum HistoryPDF {
                 if y > 640 { newPage() }
                 let med = state.medications.first { $0.id == dose.medicationId }
                 text("\(dose.scheduledAt.formatted(date: .abbreviated, time: .shortened)) · \(med?.name ?? "Archived medicine")", bold: true)
-                text("\(dose.status.title). \(med.map { PillTime.number($0.doseQuantity) + " " + $0.doseUnit } ?? "") · Confirmed: \(dose.confirmedAt.map { $0.formatted(date: .abbreviated, time: .shortened) } ?? "Not recorded") · Method: \(dose.methodTitle)")
+                text("\(dose.status.title). \(med.map { $0.doseText } ?? "") · Confirmed: \(dose.confirmedAt.map { $0.formatted(date: .abbreviated, time: .shortened) } ?? "Not recorded") · Method: \(dose.methodTitle)")
                 if let reason = dose.replanReason ?? dose.reason, !reason.isEmpty { text(PillCheckCopy.recordText(reason)) }
             }
             if !state.changes.isEmpty {

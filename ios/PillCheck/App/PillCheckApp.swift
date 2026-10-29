@@ -177,10 +177,10 @@ struct DoseRow: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(alignment: .top, spacing: 14) {
-                Image(systemName: dose.status.isTaken ? "checkmark.circle.fill" : "pills").font(.title2).foregroundStyle(Theme.green).frame(width: 32)
+                Image(systemName: dose.status.isTaken ? "checkmark.circle.fill" : medication.isLiquid ? "drop.fill" : "pills").font(.title2).foregroundStyle(Theme.green).frame(width: 32)
                 VStack(alignment: .leading, spacing: 5) {
                     Text(medication.name).font(.headline)
-                    Text("\(PillTime.number(medication.strengthMg)) mg · \(PillTime.number(medication.doseQuantity)) \(medication.doseUnit)").font(.subheadline).foregroundStyle(.secondary)
+                    Text("\(medication.strengthText) · \(medication.doseText)").font(.subheadline).foregroundStyle(.secondary)
                     Text(dose.scheduledAt.formatted(date: .omitted, time: .shortened)).font(.subheadline.weight(.semibold))
                     if dose.replanReason != nil { Text("Adjusted from \(dose.originalScheduledAt.formatted(date: .omitted, time: .shortened))").font(.caption).foregroundStyle(Theme.green) }
                 }

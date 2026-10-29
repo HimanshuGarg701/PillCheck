@@ -11,7 +11,29 @@ import {
   localDay,
   ensureToday,
   atTime,
+  dailyMg,
 } from "../shared/domain.js";
+test("liquid duplicate totals account for the bottle concentration", () => {
+  const liquid = {
+    ...samples[0],
+    id: "liquid",
+    strengthMg: 250,
+    strengthVolumeMl: 5,
+    doseQuantity: 7.5,
+    doseUnit: "mL",
+  };
+  assert.equal(dailyMg(validateMedication(liquid)), 750);
+  const pills = { ...samples[0], id: "pills", status: "active" };
+  assert.equal(checkRisks(liquid, [pills])[0].combinedMg, 1750);
+  assert.throws(
+    () => validateMedication({ ...liquid, strengthVolumeMl: 0 }),
+    /liquid strength/,
+  );
+  assert.throws(
+    () => validateMedication({ ...liquid, doseUnit: "tablet" }),
+    /liquid strength/,
+  );
+});
 test("label salt form still detects duplicate ingredient and reference interaction", () => {
   const s = makeSeed();
   assert.equal(
