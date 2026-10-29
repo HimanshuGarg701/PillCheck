@@ -59,7 +59,7 @@ struct IntakeView: View {
     @State private var draft: MedicineDraft?
     var body: some View {
         NavigationStack {
-            ScrollView {
+            BrandScrollView {
                 VStack(alignment: .leading, spacing: 20) {
                     Text("Add a medicine").font(Theme.pageTitle).tracking(-0.6)
                     Text("Scan a label or enter your medicine details. Review every field before saving.").foregroundStyle(Theme.muted)
@@ -98,7 +98,7 @@ struct IntakeView: View {
                     Text("The selected label is sent securely to Meta to read the medicine details. You review the results before saving.").font(.footnote).foregroundStyle(Theme.muted)
                     DisclaimerView()
                 }.padding(20)
-            }.background(Theme.background).navigationTitle("Add medicine").navigationBarTitleDisplayMode(.inline)
+            }.navigationTitle("Add medicine").navigationBarTitleDisplayMode(.inline)
                 .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Close") { dismiss() } } }
                 .sheet(item: $draft) { draft in MedicineEditor(draft: draft, onSaved: { dismiss() }) }
                 .sheet(isPresented: $camera) { CameraPicker { data in if let data { imageData = data; Task { await readImage(data) } } } }
@@ -245,7 +245,7 @@ struct MedicineEditor: View {
                     }
                 }
                 Section { DisclaimerView() }
-            }.disabled(checkingAI).scrollContentBackground(.hidden).background(Theme.background)
+            }.disabled(checkingAI).scrollContentBackground(.hidden).background(BrandBackdrop())
                 .navigationTitle(draft.original == nil ? "Review medicine" : "Update regimen").navigationBarTitleDisplayMode(.inline)
                 .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } } }
                 .onChange(of: draft) { _, _ in clearCheck() }

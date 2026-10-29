@@ -166,7 +166,7 @@ struct TodayView: View {
     @State private var showReplan = false
     var body: some View {
         NavigationStack {
-            ScrollView {
+            BrandScrollView {
                 VStack(alignment: .leading, spacing: 22) {
                     VStack(alignment: .leading, spacing: 6) {
                         Text("Today").font(Theme.pageTitle).tracking(-0.6)
@@ -206,9 +206,12 @@ struct TodayView: View {
                     }.card()
                     DisclaimerView()
                 }.padding(20)
-            }.background(Theme.background)
+            }
                 .navigationTitle("PillCheck").navigationBarTitleDisplayMode(.inline)
-                .toolbar { ToolbarItem(placement: .topBarTrailing) { Button { adding = true } label: { Image(systemName: "plus") }.accessibilityLabel("Add medicine") } }
+                .toolbar {
+                    ToolbarItem(placement: .principal) { PillCheckWordmark() }
+                    ToolbarItem(placement: .topBarTrailing) { Button { adding = true } label: { Image(systemName: "plus") }.accessibilityLabel("Add medicine") }
+                }
                 .sheet(isPresented: $adding) { IntakeView() }
                 .sheet(isPresented: $showReplan) { if let id = store.lateDoseID { ReplanView(doseID: id) } }
                 .deferReminderCards(while: adding || showReplan)

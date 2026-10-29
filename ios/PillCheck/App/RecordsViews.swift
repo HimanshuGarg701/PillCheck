@@ -11,7 +11,7 @@ struct MedicinesView: View {
     @State private var savedReview: MedicationAIReview?
     var body: some View {
         NavigationStack {
-            ScrollView {
+            BrandScrollView {
                 LazyVStack(alignment: .leading, spacing: 20) {
                     VStack(alignment: .leading, spacing: 6) {
                         Text("Your medicines").font(Theme.pageTitle).tracking(-0.6)
@@ -87,13 +87,13 @@ struct MedicinesView: View {
                     }
                     DisclaimerView()
                 }.padding(20)
-            }.background(Theme.background).navigationTitle("Medicines").navigationBarTitleDisplayMode(.inline)
+            }.navigationTitle("Medicines").navigationBarTitleDisplayMode(.inline)
                 .toolbar { ToolbarItem(placement: .topBarTrailing) { Button { add = true } label: { Image(systemName: "plus") }.accessibilityLabel("Add medicine") } }
                 .sheet(isPresented: $add) { IntakeView() }
                 .sheet(item: $edit) { draft in MedicineEditor(draft: draft) }
                 .sheet(item: $reviewing) { med in MedicationAIReviewView(medication: med) }
                 .sheet(item: $savedReview) { review in
-                    NavigationStack { ScrollView { VStack(alignment: .leading, spacing: 20) { WarningBox(text: "Historical snapshot. Run a new review for the current medication list."); MedicationReviewContent(review: review) }.padding(20) }.background(Theme.background).navigationTitle("Saved review").navigationBarTitleDisplayMode(.inline).toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { savedReview = nil } } } }
+                    NavigationStack { BrandScrollView { VStack(alignment: .leading, spacing: 20) { WarningBox(text: "Historical snapshot. Run a new review for the current medication list."); MedicationReviewContent(review: review) }.padding(20) }.navigationTitle("Saved review").navigationBarTitleDisplayMode(.inline).toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { savedReview = nil } } } }
                 }
                 .deferReminderCards(while: add || edit != nil || reviewing != nil || savedReview != nil || archiving != nil)
                 .alert("Stop this medication schedule?", isPresented: Binding(get: { archiving != nil }, set: { if !$0 { archiving = nil } })) {
@@ -125,7 +125,7 @@ struct HistoryView: View {
     }
     var body: some View {
         NavigationStack {
-            ScrollView {
+            BrandScrollView {
                 LazyVStack(alignment: .leading, spacing: 20) {
                     Text("Medication history").font(Theme.pageTitle).tracking(-0.6)
                     Text("See your check-ins, prescription changes, and medication history in one place.").foregroundStyle(Theme.muted)
@@ -160,7 +160,7 @@ struct HistoryView: View {
                     }.card()
                     DisclaimerView()
                 }.padding(20)
-            }.background(Theme.background).navigationTitle("History").navigationBarTitleDisplayMode(.inline)
+            }.navigationTitle("History").navigationBarTitleDisplayMode(.inline)
                 .sheet(item: $pdf) { file in ShareSheet(items: [file.url]) }
                 .deferReminderCards(while: pdf != nil)
                 .onChange(of: from) { _, new in if to < new { to = new } }

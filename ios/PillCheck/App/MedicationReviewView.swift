@@ -79,7 +79,7 @@ struct MedicationAIReviewView: View {
     private var busy: Bool { requestID != nil }
     var body: some View {
         NavigationStack {
-            ScrollView {
+            BrandScrollView {
                 VStack(alignment: .leading, spacing: 22) {
                     Text(medication.name).font(Theme.pageTitle).tracking(-0.6)
                     Text("Check possible interactions, shared active ingredients under different brands, and label-supported spacing. Includes active and recently stopped records.")
@@ -98,7 +98,7 @@ struct MedicationAIReviewView: View {
                     if let review { MedicationReviewContent(review: review) }
                     else if !busy { DisclaimerView() }
                 }.padding(20)
-            }.background(Theme.background).navigationTitle("AI medication review").navigationBarTitleDisplayMode(.inline)
+            }.navigationTitle("AI medication review").navigationBarTitleDisplayMode(.inline)
                 .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { requestID = nil; dismiss() } } }
                 .task(id: requestID) {
                     guard let id = requestID else { return }

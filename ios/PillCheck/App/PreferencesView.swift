@@ -11,7 +11,13 @@ struct PreferencesView: View {
         NavigationStack {
             Form {
                 Section {
-                    Text("Make it yours.").font(Theme.sectionTitle)
+                    HStack(spacing: 12) {
+                        PillCheckMark(size: 40)
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("PillCheck").font(Theme.sectionTitle)
+                            Text("Your preferences").font(.subheadline).foregroundStyle(Theme.muted)
+                        }
+                    }
                     Text("Your medication history is stored on this iPhone and is available offline.").foregroundStyle(Theme.muted)
                 }
                 Section("Voice & language") {
@@ -50,7 +56,7 @@ struct PreferencesView: View {
                     Text("There is no delete-history control. Earlier regimens, confirmations, and audit entries are retained. Keep an export before uninstalling the app or replacing this iPhone.").font(.footnote).foregroundStyle(Theme.muted)
                 }
                 Section { DisclaimerView() }
-            }.scrollContentBackground(.hidden).background(Theme.background).navigationTitle("Preferences").navigationBarTitleDisplayMode(.inline)
+            }.scrollContentBackground(.hidden).background(BrandBackdrop()).navigationTitle("Preferences").navigationBarTitleDisplayMode(.inline)
                 .onAppear { problems = store.state.problems.joined(separator: ", ") }
                 .sheet(isPresented: $shareRecords) { ShareSheet(items: [store.fileURL]) }
                 .sheet(isPresented: $showReplan) { if let id = store.lateDoseID { ReplanView(doseID: id) } }

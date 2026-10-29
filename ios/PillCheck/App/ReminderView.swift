@@ -12,7 +12,7 @@ struct ReminderView: View {
     @State private var reason = ""
     var body: some View {
         NavigationStack {
-            ScrollView {
+            BrandScrollView {
                 VStack(spacing: 22) {
                     if selection.isPreview {
                         Text("Notification preview · Done will not change your history.")
@@ -54,7 +54,7 @@ struct ReminderView: View {
                         ContentUnavailableView("This dose is already recorded", systemImage: "checkmark.circle", description: Text("Your history is preserved."))
                     }
                 }.padding(24)
-            }.background(Theme.background).navigationTitle("Your check-in").navigationBarTitleDisplayMode(.inline)
+            }.navigationTitle("Your check-in").navigationBarTitleDisplayMode(.inline)
                 .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Close") { dismiss() } } }
                 .onDisappear { store.speech.stop() }
                 .alert("Record skipped dose", isPresented: $skipping) {
@@ -125,7 +125,7 @@ struct ReplanView: View {
     @State private var error: String?
     var body: some View {
         NavigationStack {
-            ScrollView {
+            BrandScrollView {
                 VStack(alignment: .leading, spacing: 24) {
                     if let dose = store.state.doses.first(where: { $0.id == doseID }), let med = store.medicine(dose.medicationId) {
                         Text("Timing review").font(Theme.pageTitle).tracking(-0.6)
@@ -158,7 +158,7 @@ struct ReplanView: View {
                     }
                     DisclaimerView()
                 }.padding(24)
-            }.background(Theme.background).navigationTitle("Late-dose review").navigationBarTitleDisplayMode(.inline)
+            }.navigationTitle("Late-dose review").navigationBarTitleDisplayMode(.inline)
                 .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
                 .onDisappear { store.speech.stop() }
         }
