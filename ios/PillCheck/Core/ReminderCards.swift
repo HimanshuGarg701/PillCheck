@@ -24,12 +24,13 @@ struct ReminderCardQueue {
 
     mutating func next(state: PillCheckState, now: Date, canPresent: Bool) -> ReminderCardRequest? {
         guard isForeground, canPresent else { return nil }
+        let enabled = Set(state.medications.filter(\.isScheduleEnabled).map(\.id))
         while !requested.isEmpty {
             var request = requested.removeFirst()
             var unique = Set<String>()
             request.doseIDs = request.doseIDs.filter { id in
                 unique.insert(id).inserted && state.doses.contains {
-                    $0.id == id && $0.status.canRecord && (request.isPreview || $0.scheduledAt <= now)
+                    $0.id == id && enabled.contains($0.medicationId) && $0.status.canRecord && (request.isPreview || $0.scheduledAt <= now)
                 }
             }
             if !request.doseIDs.isEmpty {
@@ -38,7 +39,7 @@ struct ReminderCardQueue {
             }
         }
         let due = state.doses.filter {
-            $0.status == .pending && $0.scheduledAt <= now &&
+            enabled.contains($0.medicationId) && $0.status == .pending && $0.scheduledAt <= now &&
             $0.scheduledAt.addingTimeInterval(Double(state.reminderWindowMinutes) * 60) > now &&
             !shownDoseIDs.contains($0.id)
         }.sorted { $0.scheduledAt < $1.scheduledAt }

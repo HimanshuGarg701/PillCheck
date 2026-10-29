@@ -33,10 +33,11 @@ enum MedicationEngine {
         return m
     }
     static func schedule(_ med: Medication, on date: Date) -> [DoseEvent] {
-        guard med.status == .active, PillTime.day(date) >= PillTime.day(med.startDate),
+        guard med.isScheduleEnabled, PillTime.day(date) >= PillTime.day(med.startDate),
               med.endDate.map({ PillTime.day(date) <= PillTime.day($0) }) ?? true else { return [] }
         return med.times.compactMap { time in
-            guard let at = PillTime.at(date, time), at >= med.startDate else { return nil }
+            guard let at = PillTime.at(date, time), at >= med.startDate,
+                  !(med.schedulePauses ?? []).contains(where: { $0.contains(at) }) else { return nil }
             return DoseEvent(id: "\(med.id):\(PillTime.key(date)):\(time)", medicationId: med.id, scheduledAt: at, originalScheduledAt: at)
         }
     }
@@ -112,6 +113,7 @@ enum MedicationEngine {
         if PillTime.sameDay(med.startDate, now) { med.startDate = now }
         if let oldID {
             guard let oldIndex = state.medications.firstIndex(where: { $0.id == oldID && $0.status == .active }) else { throw PillCheckError("The earlier regimen is no longer active.") }
+            if state.medications[oldIndex].isSchedulePaused { med.schedulePauses = [SchedulePause(startedAt: now)] }
             state.medications[oldIndex].status = .stopped
             state.medications[oldIndex].endDate = now
             state.medications[oldIndex].archiveReason = "Regimen updated"
@@ -133,16 +135,44 @@ enum MedicationEngine {
         state.medications[i].status = .stopped
         state.medications[i].endDate = now
         state.medications[i].archiveReason = reason
-        for j in state.doses.indices where state.doses[j].medicationId == id && state.doses[j].status == .pending && state.doses[j].scheduledAt >= now {
+        for j in state.doses.indices where state.doses[j].medicationId == id && state.doses[j].status == .pending {
             state.doses[j].status = .cancelled
-            state.doses[j].reason = "Recorded prescription already discontinued"
+            state.doses[j].reason = "Schedule stopped"
         }
         state.audit.append(AuditEntry(type: "medicine_archived", at: now, reason: "\(state.medications[i].name): \(reason)"))
     }
+    static func setSchedulePaused(_ paused: Bool, for id: String, state: inout PillCheckState, now: Date) throws {
+        guard let index = state.medications.firstIndex(where: { $0.id == id && $0.status == .active }) else {
+            throw PillCheckError("This schedule has stopped. Add a new medication record to start a new schedule.")
+        }
+        guard state.medications[index].isSchedulePaused != paused else { return }
+        if paused {
+            state.medications[index].schedulePauses = (state.medications[index].schedulePauses ?? []) + [SchedulePause(startedAt: now)]
+            for i in state.doses.indices where state.doses[i].medicationId == id && state.doses[i].status == .pending {
+                state.doses[i].status = .cancelled
+                state.doses[i].reason = "Schedule paused"
+            }
+        } else {
+            var pauses = state.medications[index].schedulePauses ?? []
+            guard let last = pauses.indices.last, now >= pauses[last].startedAt else { throw PillCheckError("The resume time cannot be before the pause time.") }
+            pauses[last].resumedAt = now
+            state.medications[index].schedulePauses = pauses
+            // Only revive future events cancelled by this control. Never backfill a paused dose.
+            for i in state.doses.indices where state.doses[i].medicationId == id && state.doses[i].status == .cancelled && state.doses[i].reason == "Schedule paused" && state.doses[i].scheduledAt > now {
+                state.doses[i].status = .pending
+                state.doses[i].reason = nil
+            }
+            let known = Set(state.doses.map(\.id))
+            state.doses.append(contentsOf: schedule(state.medications[index], on: now).filter { $0.scheduledAt > now && !known.contains($0.id) })
+        }
+        state.audit.append(AuditEntry(type: paused ? "schedule_paused" : "schedule_resumed", at: now,
+            reason: "\(state.medications[index].name): schedule \(paused ? "paused" : "resumed for future doses"). Earlier check-ins preserved."))
+    }
     static func replanEligible(_ med: Medication) -> Bool {
-        !isHighRisk(med) && med.demo && med.id == "med-metformin" && canonical(med.ingredient) == "metformin" && med.strengthMg == 500 && med.doseQuantity == 1 && med.minSpacingHours == 10
+        med.isScheduleEnabled && !isHighRisk(med) && med.demo && med.id == "med-metformin" && canonical(med.ingredient) == "metformin" && med.strengthMg == 500 && med.doseQuantity == 1 && med.minSpacingHours == 10
     }
     static func apply(_ proposal: ReplanProposal, medication: Medication, confirmed: DoseEvent, state: inout PillCheckState) throws {
+        guard state.medications.first(where: { $0.id == medication.id })?.isScheduleEnabled == true else { throw PillCheckError("This schedule is paused or stopped. No times changed.") }
         guard !isHighRisk(medication) else { throw PillCheckError(PillCheckCopy.pharmacist) }
         guard replanEligible(medication), let confirmedAt = confirmed.confirmedAt, confirmed.status.isTaken else { throw PillCheckError("A pharmacist-approved timing plan is required for this medicine.") }
         let future = state.doses.filter { $0.medicationId == medication.id && $0.status == .pending && PillTime.sameDay($0.scheduledAt, confirmedAt) }.sorted { $0.scheduledAt < $1.scheduledAt }

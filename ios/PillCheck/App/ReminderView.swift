@@ -136,7 +136,7 @@ struct ReplanView: View {
                         } else if !MedicationEngine.replanEligible(med) {
                             WarningBox(text: "This medicine needs a pharmacist-approved timing plan. No remaining doses or quantities have changed.")
                         } else if let result {
-                            Label("Live Muse Spark 1.3 response", systemImage: "checkmark.circle.fill").foregroundStyle(Theme.green)
+                            Label("Timing review complete", systemImage: "checkmark.circle.fill").foregroundStyle(Theme.green)
                             ForEach(result.changes, id: \.doseId) { change in
                                 if let saved = store.state.changes.last(where: { $0.doseId == change.doseId }) {
                                     HStack { Text(saved.oldTime.formatted(date: .omitted, time: .shortened)).strikethrough().foregroundStyle(.secondary); Image(systemName: "arrow.right"); Text(saved.newTime.formatted(date: .omitted, time: .shortened)).bold() }.font(.title2).card(Theme.sage)

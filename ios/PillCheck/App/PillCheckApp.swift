@@ -142,7 +142,6 @@ struct TodayView: View {
                         if store.state.practiceClockEnabled { Text("Reminder preview: \(store.now.formatted(date: .omitted, time: .shortened)). Notifications are paused. End the preview in Preferences.").font(.footnote).foregroundStyle(.secondary) }
                     }.card()
                     DisclaimerView()
-                    Text(store.modelStatus).font(.caption).foregroundStyle(Theme.green)
                 }.padding(20)
             }.background(Theme.cream)
                 .navigationTitle("PillCheck").navigationBarTitleDisplayMode(.inline)

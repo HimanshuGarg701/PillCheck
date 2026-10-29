@@ -63,7 +63,7 @@ struct IntakeView: View {
                 VStack(alignment: .leading, spacing: 20) {
                     Text("Start with a label.").font(.system(.largeTitle, design: .rounded, weight: .bold))
                     Text("Scan a label or enter your medicine details. Review every field before saving.").foregroundStyle(.secondary)
-                    if busy { HStack { ProgressView(); Text("Muse Spark 1.3 is reading the label…") }.font(.subheadline).card(Theme.sage) }
+                    if busy { HStack { ProgressView(); Text("Reading the label…") }.font(.subheadline).card(Theme.sage) }
                     if let error { WarningBox(text: error + " No medicine has been added. Your selected image and text are retained.") }
                     if let imageData, let image = UIImage(data: imageData) { Image(uiImage: image).resizable().scaledToFit().frame(maxHeight: 180).clipShape(RoundedRectangle(cornerRadius: 12)) }
                     PhotosPicker(selection: $photo, matching: .images) { Label("Choose a label photo", systemImage: "photo") }.buttonStyle(PrimaryButtonStyle(secondary: true)).disabled(busy)
@@ -120,13 +120,13 @@ struct IntakeView: View {
     private func readImage(_ data: Data) async {
         busy = true; error = nil
         defer { busy = false }
-        do { draft = MedicineDraft(scan: try await store.meta.scan(image: data), now: store.now); store.modelStatus = "Muse Spark 1.3 · live" }
+        do { draft = MedicineDraft(scan: try await store.meta.scan(image: data), now: store.now) }
         catch { self.error = error.localizedDescription }
     }
     private func readText() async {
         busy = true; error = nil
         defer { busy = false }
-        do { draft = MedicineDraft(scan: try await store.meta.scan(text: labelText), now: store.now); store.modelStatus = "Muse Spark 1.3 · live" }
+        do { draft = MedicineDraft(scan: try await store.meta.scan(text: labelText), now: store.now) }
         catch { self.error = error.localizedDescription }
     }
     private func openCamera() async {
@@ -203,7 +203,7 @@ struct MedicineEditor: View {
                     }.accessibilityIdentifier("liquid-medicine")
                 }
                 if draft.source == "meta-reviewed" {
-                    Section("Read live by Muse Spark 1.3") {
+                    Section("Review label details") {
                         Text(draft.explanation)
                         if !draft.uncertain.isEmpty { WarningBox(text: "Confirm these fields: " + draft.uncertain.joined(separator: ", ")) }
                     }
@@ -333,7 +333,6 @@ struct MedicineEditor: View {
             let result = try await store.meta.review(candidate: m, medications: store.otherMedicines(for: m))
             guard reviewRequest == request else { return }
             aiReview = result
-            if result.completed { store.modelStatus = "Muse Spark 1.3 · live" }
         } catch { self.error = error.localizedDescription }
     }
     private func save() {

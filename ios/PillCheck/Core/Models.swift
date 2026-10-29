@@ -28,11 +28,17 @@ enum DoseStatus: String, Codable, CaseIterable {
         case .takenLate: "Taken late"
         case .skipped: "Skipped"
         case .missed: "Missed"
-        case .cancelled: "Regimen updated"
+        case .cancelled: "Cancelled"
         }
     }
     var isTaken: Bool { self == .takenOnTime || self == .takenLate }
     var canRecord: Bool { self == .pending || self == .missed }
+}
+
+struct SchedulePause: Codable, Equatable {
+    var startedAt: Date
+    var resumedAt: Date? = nil
+    func contains(_ date: Date) -> Bool { date >= startedAt && (resumedAt.map { date <= $0 } ?? true) }
 }
 
 struct Medication: Identifiable, Codable, Equatable {
@@ -55,6 +61,10 @@ struct Medication: Identifiable, Codable, Equatable {
     var source: String = "manual-reviewed"
     var archiveReason: String? = nil
     var strengthVolumeMl: Double? = nil
+    // Pausing reminders does not remove a medicine from interaction checks.
+    var schedulePauses: [SchedulePause]? = nil
+    var isSchedulePaused: Bool { schedulePauses?.last?.resumedAt == nil && schedulePauses?.isEmpty == false }
+    var isScheduleEnabled: Bool { status == .active && !isSchedulePaused }
     static func isLiquidUnit(_ unit: String) -> Bool {
         ["ml", "milliliter", "milliliters", "millilitre", "millilitres"].contains(unit.trimmingCharacters(in: .whitespacesAndNewlines).lowercased())
     }

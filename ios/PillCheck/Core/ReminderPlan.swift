@@ -24,7 +24,8 @@ enum ReminderPlanner {
                 for d in MedicationEngine.schedule(med, on: PillTime.addingDays(offset, to: now)) where ids.insert(d.id).inserted { doses.append(d) }
             }
         }
-        let pending = doses.filter { $0.status == .pending && $0.scheduledAt.addingTimeInterval(Double(state.reminderWindowMinutes) * 60) > now }
+        let enabled = Set(state.medications.filter(\.isScheduleEnabled).map(\.id))
+        let pending = doses.filter { enabled.contains($0.medicationId) && $0.status == .pending && $0.scheduledAt.addingTimeInterval(Double(state.reminderWindowMinutes) * 60) > now }
         let groups = Dictionary(grouping: pending, by: \.scheduledAt)
         var all: [PlannedReminder] = []
         for (at, group) in groups {

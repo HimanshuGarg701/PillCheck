@@ -4,8 +4,6 @@ import UserNotifications
 struct PreferencesView: View {
     @EnvironmentObject private var store: PillStore
     @State private var problems = ""
-    @State private var checking = false
-    @State private var connection: String?
     @State private var shareRecords = false
     @State private var lateIntro = false
     @State private var showReplan = false
@@ -22,7 +20,7 @@ struct PreferencesView: View {
                         Text("Español").tag("es-ES")
                         Text("हिन्दी").tag("hi-IN")
                     }
-                    Text("Meta writes reminder text in this language. iOS reads it aloud. Previously generated text is cached for offline playback. Voice confirmation uses on-device recognition when supported.").font(.footnote).foregroundStyle(.secondary)
+                    Text("Hear reminders in your preferred language. Previously generated reminders are available for offline playback. Voice confirmation uses on-device recognition when supported.").font(.footnote).foregroundStyle(.secondary)
                 }
                 NotificationSettings(store: store, reminders: store.notifications)
                 Section {
@@ -45,13 +43,7 @@ struct PreferencesView: View {
                     Text("This records a known problem with a medicine class. It is not a diagnosis or allergy assessment.").font(.footnote).foregroundStyle(.secondary)
                 }
                 Section("AI assistance") {
-                    LabeledContent("Model", value: "Muse Spark 1.3")
-                    Button {
-                        checking = true
-                        Task { do { connection = try await store.meta.checkConnection(); store.modelStatus = "Muse Spark 1.3 · live" } catch { connection = error.localizedDescription }; checking = false }
-                    } label: { HStack { Text("Check connection"); if checking { Spacer(); ProgressView() } } }.disabled(checking)
-                    if let connection { Text(connection).font(.footnote).textSelection(.enabled) }
-                    Text("Meta helps read labels, review ingredients and interactions, and explain timing. AI checks require an internet connection. Review findings with your pharmacist before changing your prescription.").font(.footnote).foregroundStyle(.secondary)
+                    Text("AI helps read labels, review ingredients and interactions, and explain timing. These checks require an internet connection. Review findings with your pharmacist before changing your prescription.").font(.footnote).foregroundStyle(.secondary)
                 }
                 Section("Your records") {
                     Button { shareRecords = true } label: { Label("Export all records (JSON)", systemImage: "square.and.arrow.up") }

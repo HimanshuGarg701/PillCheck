@@ -15,7 +15,6 @@ final class PillStore: ObservableObject {
     @Published var notice: String?
     @Published var activeReminder: ReminderSelection?
     @Published var lateDoseID: String?
-    @Published var modelStatus = "Muse Spark 1.3"
     @Published var isWorking = false
     let notifications = LocalReminders()
     let speech = SpeechService()
@@ -51,7 +50,7 @@ final class PillStore: ObservableObject {
         state.doses.filter { PillTime.sameDay($0.scheduledAt, now) && $0.status != .cancelled }.sorted { $0.scheduledAt < $1.scheduledAt }
     }
     var nextGroup: [DoseEvent] {
-        let pending = today.filter { $0.status.canRecord }
+        let pending = today.filter { $0.status.canRecord && medicine($0.medicationId)?.isScheduleEnabled == true }
         guard let first = pending.first else { return [] }
         return pending.filter { $0.scheduledAt == first.scheduledAt }
     }
@@ -139,6 +138,10 @@ final class PillStore: ObservableObject {
         let at = now
         try change { try MedicationEngine.archive(id, state: &$0, now: at, reason: reason) }
     }
+    func setSchedulePaused(_ paused: Bool, for id: String) throws {
+        let at = now
+        try change { try MedicationEngine.setSchedulePaused(paused, for: id, state: &$0, now: at) }
+    }
     func otherMedicines(for medication: Medication) -> [Medication] {
         state.medications.filter { other in
             other.id != medication.id && (other.status == .active || other.endDate.map { $0 <= now && now.timeIntervalSince($0) <= 30 * 86400 } == true)
@@ -149,7 +152,6 @@ final class PillStore: ObservableObject {
         if let cached = state.spokenCache[key] { return cached }
         let text = try await meta.reminder(medication: med, language: state.language)
         try change { $0.spokenCache[key] = text }
-        modelStatus = "Muse Spark 1.3 · live"
         return text
     }
     func replan(_ id: String) async throws -> ReplanProposal {
@@ -162,7 +164,6 @@ final class PillStore: ObservableObject {
         do {
             let proposal = try await meta.replan(medication: med, dose: dose, future: future, language: state.language)
             try change { try MedicationEngine.apply(proposal, medication: med, confirmed: dose, state: &$0) }
-            modelStatus = "Muse Spark 1.3 · live"
             return proposal
         } catch {
             try? change { $0.audit.append(AuditEntry(type: "replan_not_applied", at: Date(), reason: error.localizedDescription)) }

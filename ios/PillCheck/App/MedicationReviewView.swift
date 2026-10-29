@@ -4,7 +4,7 @@ struct MedicationReviewContent: View {
     let review: MedicationAIReview
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
-            Label(review.completed ? "Reviewed with Muse Spark 1.3" : "AI review incomplete", systemImage: review.completed ? "sparkles" : "exclamationmark.triangle")
+            Label(review.completed ? "AI review complete" : "AI review incomplete", systemImage: review.completed ? "sparkles" : "exclamationmark.triangle")
                 .font(.headline).foregroundStyle(review.completed ? Theme.green : Theme.amber)
             Text(review.summary).font(.title3)
             if !review.completed, let problem = review.warnings.last { WarningBox(text: problem) }
@@ -74,8 +74,9 @@ struct MedicationAIReviewView: View {
     @Environment(\.dismiss) private var dismiss
     let medication: Medication
     @State private var review: MedicationAIReview?
-    @State private var busy = false
+    @State private var requestID: UUID?
     @State private var error: String?
+    private var busy: Bool { requestID != nil }
     var body: some View {
         NavigationStack {
             ScrollView {
@@ -84,22 +85,36 @@ struct MedicationAIReviewView: View {
                     Text("Check possible interactions, shared active ingredients under different brands, and label-supported spacing. Includes active and recently stopped records.")
                     Text("Medicine names go to U.S. reference services. The reviewed medicine details and reference excerpts go to Meta. Your name and dose history are not sent.").font(.footnote).foregroundStyle(.secondary)
                     Button {
-                        busy = true; error = nil; review = nil
-                        Task {
-                            do { review = try await store.meta.review(candidate: medication, medications: store.otherMedicines(for: medication)) }
-                            catch { self.error = error.localizedDescription }
-                            busy = false
-                        }
+                        error = nil; review = nil; requestID = UUID()
                     } label: {
                         if busy { HStack { ProgressView().tint(.white); Text("Checking references & AI…") } }
                         else { Label(review == nil ? "Check with AI" : "Run a fresh review", systemImage: "sparkles") }
                     }.buttonStyle(PrimaryButtonStyle()).disabled(busy)
-                    if let error { WarningBox(text: error + " This is an incomplete check, not a safety result.") }
+                    if busy {
+                        Text("Checking medicine references and preparing your review. This can take up to a minute.").font(.subheadline).foregroundStyle(.secondary)
+                        Button("Cancel check") { requestID = nil }.frame(minHeight: 44)
+                    }
+                    if let error { WarningBox(text: error + " Your saved medicines and schedule have not changed.") }
                     if let review { MedicationReviewContent(review: review) }
                     else if !busy { DisclaimerView() }
                 }.padding(20)
             }.background(Theme.cream).navigationTitle("AI medication review").navigationBarTitleDisplayMode(.inline)
-                .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
+                .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { requestID = nil; dismiss() } } }
+                .task(id: requestID) {
+                    guard let id = requestID else { return }
+                    defer { if requestID == id { requestID = nil } }
+                    do {
+                        let result = try await store.meta.review(candidate: medication, medications: store.otherMedicines(for: medication))
+                        try Task.checkCancellation()
+                        guard requestID == id else { return }
+                        review = result
+                    } catch is CancellationError {
+                        // A cancelled or dismissed review cannot update another presentation.
+                    } catch {
+                        guard !Task.isCancelled, requestID == id else { return }
+                        self.error = error.localizedDescription
+                    }
+                }
         }
     }
 }

@@ -16,17 +16,22 @@ struct MedicinesView: View {
                     Text("Earlier regimens stay in your history.").foregroundStyle(.secondary)
                     ForEach(store.state.medications.filter { $0.status == .active }) { med in
                         VStack(alignment: .leading, spacing: 16) {
-                            HStack { Image(systemName: med.isLiquid ? "drop.fill" : "pills").font(.title).foregroundStyle(Theme.green); Spacer(); Text("Active regimen").font(.caption).foregroundStyle(Theme.green) }
+                            HStack { Image(systemName: med.isLiquid ? "drop.fill" : "pills").font(.title).foregroundStyle(Theme.green); Spacer(); Text(med.isSchedulePaused ? "Schedule paused" : "Schedule active").font(.caption).foregroundStyle(med.isSchedulePaused ? Theme.amber : Theme.green) }
                             Text(med.name).font(.title2.bold())
                             Text("\(med.ingredient) · \(med.strengthText)").foregroundStyle(.secondary)
                             LabeledContent("Recorded dose", value: "\(med.doseText)")
                             LabeledContent("Schedule", value: med.times.joined(separator: " · "))
                             LabeledContent("Daily ingredient", value: "\(PillTime.number(med.dailyMg)) mg")
                             Text(med.instructions).font(.subheadline)
+                            if med.isSchedulePaused { Text("Reminders are paused. This medicine stays in interaction checks. Resume to schedule future doses at the recorded times.").font(.subheadline).foregroundStyle(.secondary) }
                             if MedicationEngine.isHighRisk(med) { WarningBox(text: PillCheckCopy.pharmacist) }
                             Button { reviewing = med } label: { Label("AI interactions & timing", systemImage: "sparkles") }.buttonStyle(PrimaryButtonStyle(secondary: true))
                             Button("Update record") { edit = MedicineDraft(medicine: med, now: store.now) }.buttonStyle(PrimaryButtonStyle(secondary: true))
-                            Button("Archive regimen") { archiving = med; archiveReason = "" }.frame(minHeight: 44)
+                            Button {
+                                do { try store.setSchedulePaused(!med.isSchedulePaused, for: med.id) }
+                                catch { store.error = error.localizedDescription }
+                            } label: { Label(med.isSchedulePaused ? "Resume schedule" : "Pause schedule", systemImage: med.isSchedulePaused ? "play.circle" : "pause.circle") }.buttonStyle(PrimaryButtonStyle(secondary: true))
+                            Button("Stop schedule", role: .destructive) { archiving = med; archiveReason = "" }.frame(minHeight: 44)
                         }.card()
                     }
                     Text("Offline reference checks").font(.title2.bold())
@@ -70,14 +75,14 @@ struct MedicinesView: View {
                     NavigationStack { ScrollView { VStack(alignment: .leading, spacing: 20) { WarningBox(text: "Historical snapshot. Run a new review for the current medication list."); MedicationReviewContent(review: review) }.padding(20) }.background(Theme.cream).navigationTitle("Saved review").navigationBarTitleDisplayMode(.inline).toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { savedReview = nil } } } }
                 }
                 .deferReminderCards(while: add || edit != nil || reviewing != nil || savedReview != nil || archiving != nil)
-                .alert("Archive this recorded regimen?", isPresented: Binding(get: { archiving != nil }, set: { if !$0 { archiving = nil } })) {
-                    TextField("Reason", text: $archiveReason)
+                .alert("Stop this medication schedule?", isPresented: Binding(get: { archiving != nil }, set: { if !$0 { archiving = nil } })) {
+                    TextField("Reason (optional)", text: $archiveReason)
                     Button("Cancel", role: .cancel) { archiving = nil }
-                    Button("Record existing change") {
+                    Button("Stop schedule", role: .destructive) {
                         guard let med = archiving else { return }
-                        do { try store.archive(med.id, reason: archiveReason); archiving = nil } catch { store.error = error.localizedDescription }
+                        do { try store.archive(med.id, reason: archiveReason.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "Schedule stopped" : archiveReason); archiving = nil } catch { store.error = error.localizedDescription }
                     }
-                } message: { Text("Record a change already agreed with your prescriber. Earlier prescriptions and dose history will be preserved.") }
+                } message: { Text("Future reminders for \(archiving?.name ?? "this medicine") will stop and the record will move to history. Use Pause for a temporary break. This changes the app schedule; follow your prescriber's instructions about the medicine itself.") }
         }
     }
 }
