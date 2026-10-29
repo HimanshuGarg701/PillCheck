@@ -5,21 +5,21 @@ struct MedicationReviewContent: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
             Label(review.completed ? "AI review complete" : "AI review incomplete", systemImage: review.completed ? "sparkles" : "exclamationmark.triangle")
-                .font(.headline).foregroundStyle(review.completed ? Theme.green : Theme.amber)
+                .font(.headline).foregroundStyle(review.completed ? Theme.success : Theme.amber)
             Text(review.summary).font(.title3)
             if !review.completed, let problem = review.warnings.last { WarningBox(text: problem) }
-            Text("Checked \(review.createdAt.formatted(date: .abbreviated, time: .shortened)). This is a snapshot of the supplied list.").font(.footnote).foregroundStyle(.secondary)
+            Text("Checked \(review.createdAt.formatted(date: .abbreviated, time: .shortened)). This is a snapshot of the supplied list.").font(.footnote).foregroundStyle(Theme.muted)
             Text("Ingredients behind the brands").font(.title2.bold())
             ForEach(review.identities) { identity in
                 VStack(alignment: .leading, spacing: 8) {
                     Text(identity.name).font(.headline)
                     Text(identity.status == "matched" ? identity.ingredients.joined(separator: " + ") : "Ingredient identity not resolved in the U.S. reference.")
-                    if !identity.preciseIngredients.isEmpty { Text("Related salt forms in RxNorm: " + identity.preciseIngredients.joined(separator: "; ") + ". Check the package for its exact form.").font(.subheadline).foregroundStyle(.secondary) }
+                    if !identity.preciseIngredients.isEmpty { Text("Related salt forms in RxNorm: " + identity.preciseIngredients.joined(separator: "; ") + ". Check the package for its exact form.").font(.subheadline).foregroundStyle(Theme.muted) }
                     if let source = identity.sourceURL, let url = URL(string: source) { Link("NLM RxNorm source", destination: url).font(.footnote) }
-                }.card(Theme.sage)
+                }.card(Theme.accentSoft)
             }
             Text("Compared with your list").font(.title2.bold())
-            if review.pairs.isEmpty { Text("No other active or recently stopped medicines were supplied. This does not establish safety.").foregroundStyle(.secondary) }
+            if review.pairs.isEmpty { Text("No other active or recently stopped medicines were supplied. This does not establish safety.").foregroundStyle(Theme.muted) }
             ForEach(review.pairs) { pair in
                 VStack(alignment: .leading, spacing: 12) {
                     Text("\(review.candidateName) + \(pair.medicationName)").font(.headline)
@@ -36,7 +36,7 @@ struct MedicationReviewContent: View {
                             if let source = review.sources.first(where: { $0.id == evidence.sourceId }), let url = URL(string: source.url) { Link(source.title, destination: url).font(.footnote) }
                         }
                     }
-                }.card(Theme.peach)
+                }.card(Theme.warningSoft)
             }
             VStack(alignment: .leading, spacing: 14) {
                 Label("Schedule review", systemImage: "clock").font(.title2.bold())
@@ -48,14 +48,14 @@ struct MedicationReviewContent: View {
                     Text("Other medicine times and every dose amount stay unchanged. Meal instructions and the complete regimen still need pharmacist confirmation. This draft has not changed your schedule.").font(.subheadline)
                     ShareLink(item: shareText) { Label("Share timing draft for review", systemImage: "square.and.arrow.up") }.frame(minHeight: 56)
                 } else { Text("No timing change has been applied.").font(.subheadline.weight(.semibold)) }
-            }.card(Theme.sage)
+            }.card(Theme.accentSoft)
             DisclosureGroup("Reference coverage & limits") {
                 VStack(alignment: .leading, spacing: 14) {
                     ForEach(review.warnings, id: \.self) { Text($0).font(.subheadline) }
                     ForEach(review.sources) { source in
                         VStack(alignment: .leading, spacing: 6) {
                             if let url = URL(string: source.url) { Link(source.title, destination: url) }
-                            Text(source.note).font(.footnote).foregroundStyle(.secondary)
+                            Text(source.note).font(.footnote).foregroundStyle(Theme.muted)
                             if source.truncated { Text("Only an excerpt was reviewed.").font(.footnote).foregroundStyle(Theme.amber) }
                         }
                     }
@@ -81,9 +81,9 @@ struct MedicationAIReviewView: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 22) {
-                    Text("\(medication.name), with your other medicines.").font(.system(.largeTitle, design: .rounded, weight: .bold))
+                    Text(medication.name).font(Theme.pageTitle).tracking(-0.6)
                     Text("Check possible interactions, shared active ingredients under different brands, and label-supported spacing. Includes active and recently stopped records.")
-                    Text("Medicine names go to U.S. reference services. The reviewed medicine details and reference excerpts go to Meta. Your name and dose history are not sent.").font(.footnote).foregroundStyle(.secondary)
+                    Text("Medicine names go to U.S. reference services. The reviewed medicine details and reference excerpts go to Meta. Your name and dose history are not sent.").font(.footnote).foregroundStyle(Theme.muted)
                     Button {
                         error = nil; review = nil; requestID = UUID()
                     } label: {
@@ -91,14 +91,14 @@ struct MedicationAIReviewView: View {
                         else { Label(review == nil ? "Check with AI" : "Run a fresh review", systemImage: "sparkles") }
                     }.buttonStyle(PrimaryButtonStyle()).disabled(busy)
                     if busy {
-                        Text("Checking medicine references and preparing your review. This can take up to a minute.").font(.subheadline).foregroundStyle(.secondary)
+                        Text("Checking medicine references and preparing your review. This can take up to a minute.").font(.subheadline).foregroundStyle(Theme.muted)
                         Button("Cancel check") { requestID = nil }.frame(minHeight: 44)
                     }
                     if let error { WarningBox(text: error + " Your saved medicines and schedule have not changed.") }
                     if let review { MedicationReviewContent(review: review) }
                     else if !busy { DisclaimerView() }
                 }.padding(20)
-            }.background(Theme.cream).navigationTitle("AI medication review").navigationBarTitleDisplayMode(.inline)
+            }.background(Theme.background).navigationTitle("AI medication review").navigationBarTitleDisplayMode(.inline)
                 .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { requestID = nil; dismiss() } } }
                 .task(id: requestID) {
                     guard let id = requestID else { return }

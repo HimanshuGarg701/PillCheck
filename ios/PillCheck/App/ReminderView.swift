@@ -16,23 +16,23 @@ struct ReminderView: View {
                 VStack(spacing: 22) {
                     if selection.isPreview {
                         Text("Notification preview · Done will not change your history.")
-                            .font(.subheadline.weight(.medium)).multilineTextAlignment(.center).card(Theme.sage)
+                            .font(.subheadline.weight(.medium)).multilineTextAlignment(.center).card(Theme.accentSoft)
                     }
                     if let dose = currentDose, let med = store.medicine(dose.medicationId) {
-                        Text("MEDICINE \(index + 1) OF \(selection.doseIDs.count)").font(.subheadline.weight(.semibold)).tracking(1).foregroundStyle(Theme.green)
-                        Image(systemName: med.isLiquid ? "drop.fill" : "pills").font(.system(size: 56)).foregroundStyle(Theme.green).frame(width: 110, height: 110).background(Theme.sage, in: RoundedRectangle(cornerRadius: 30)).accessibilityHidden(true)
-                        Text(med.name).font(.system(.largeTitle, design: .rounded, weight: .bold)).multilineTextAlignment(.center)
-                        Text("\(med.strengthText)").font(.title2).foregroundStyle(.secondary)
+                        Text("MEDICINE \(index + 1) OF \(selection.doseIDs.count)").font(.subheadline.weight(.semibold)).tracking(1).foregroundStyle(Theme.accent)
+                        Image(systemName: med.isLiquid ? "drop.fill" : "pills").font(.system(size: 56)).foregroundStyle(Theme.accent).frame(width: 96, height: 96).background(Theme.accentSoft, in: RoundedRectangle(cornerRadius: 24, style: .continuous)).accessibilityHidden(true)
+                        Text(med.name).font(Theme.pageTitle).tracking(-0.6).multilineTextAlignment(.center)
+                        Text("\(med.strengthText)").font(.title2).foregroundStyle(Theme.muted)
                         Text("Recorded dose: \(med.doseText)").font(.title2.bold()).multilineTextAlignment(.center)
                         Text(dose.scheduledAt.formatted(date: .omitted, time: .shortened)).font(.headline)
                         Text(med.instructions).multilineTextAlignment(.center)
                         if store.now.timeIntervalSince(dose.scheduledAt) > 30 * 60 {
                             WarningBox(text: MedicationEngine.isHighRisk(med) ? PillCheckCopy.pharmacist : "This dose is late. Do not double a dose. Confirm timing with your pharmacist; record only what has already happened.")
                         }
-                        if !spoken.isEmpty { Text(spoken).font(.title3).multilineTextAlignment(.center).card(Theme.sage).accessibilityIdentifier("spoken-reminder") }
+                        if !spoken.isEmpty { Text(spoken).font(.title3).multilineTextAlignment(.center).card(Theme.accentSoft).accessibilityIdentifier("spoken-reminder") }
                         if let error { WarningBox(text: error) }
                         Button { Task { await read(med) } } label: {
-                            if busy { HStack { ProgressView().tint(.white); Text("Preparing reminder…") } }
+                            if busy { HStack { ProgressView().tint(Theme.accent); Text("Preparing reminder…") } }
                             else { Label("Speak reminder", systemImage: "speaker.wave.2.fill") }
                         }.buttonStyle(PrimaryButtonStyle(secondary: true)).disabled(busy)
                         if index < selection.doseIDs.count - 1 {
@@ -47,14 +47,14 @@ struct ReminderView: View {
                         }
                         if !selection.isPreview {
                             Button("Record this dose as skipped") { store.speech.stop(); skipping = true }.frame(minHeight: 56)
-                            Text("Done on the last card records all \(selection.doseIDs.count) medicine\(selection.doseIDs.count == 1 ? "" : "s") at the actual confirmation time\(store.state.practiceClockEnabled ? " shown in the reminder preview" : "").").font(.footnote).foregroundStyle(.secondary).multilineTextAlignment(.center)
+                            Text("Done on the last card records all \(selection.doseIDs.count) medicine\(selection.doseIDs.count == 1 ? "" : "s") at the actual confirmation time\(store.state.practiceClockEnabled ? " shown in the reminder preview" : "").").font(.footnote).foregroundStyle(Theme.muted).multilineTextAlignment(.center)
                         }
                         DisclaimerView()
                     } else {
                         ContentUnavailableView("This dose is already recorded", systemImage: "checkmark.circle", description: Text("Your history is preserved."))
                     }
                 }.padding(24)
-            }.background(Theme.cream).navigationTitle("Your check-in").navigationBarTitleDisplayMode(.inline)
+            }.background(Theme.background).navigationTitle("Your check-in").navigationBarTitleDisplayMode(.inline)
                 .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Close") { dismiss() } } }
                 .onDisappear { store.speech.stop() }
                 .alert("Record skipped dose", isPresented: $skipping) {
@@ -111,7 +111,7 @@ struct VoiceControl: View {
             Button { Task { await speech.listen(language: language, onCommand: command) } } label: {
                 Label(speech.listening ? "Listening… say Done or Next" : speech.preparing ? "Preparing microphone…" : "Confirm by voice", systemImage: speech.listening ? "waveform" : "mic")
             }.buttonStyle(PrimaryButtonStyle(secondary: true)).disabled(speech.listening || speech.preparing)
-            if !speech.transcript.isEmpty { Text(speech.transcript).font(.subheadline).foregroundStyle(.secondary) }
+            if !speech.transcript.isEmpty { Text(speech.transcript).font(.subheadline).foregroundStyle(Theme.muted) }
             if let message = speech.message { WarningBox(text: message) }
         }
     }
@@ -128,7 +128,7 @@ struct ReplanView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 24) {
                     if let dose = store.state.doses.first(where: { $0.id == doseID }), let med = store.medicine(dose.medicationId) {
-                        Text("A timing change, explained.").font(.system(.largeTitle, design: .rounded, weight: .bold))
+                        Text("Timing review").font(Theme.pageTitle).tracking(-0.6)
                         Text("\(med.name) was recorded at \(dose.confirmedAt?.formatted(date: .omitted, time: .shortened) ?? "—"), after its \(dose.originalScheduledAt.formatted(date: .omitted, time: .shortened)) time.")
                         if MedicationEngine.isHighRisk(med) {
                             WarningBox(text: PillCheckCopy.pharmacist)
@@ -136,14 +136,14 @@ struct ReplanView: View {
                         } else if !MedicationEngine.replanEligible(med) {
                             WarningBox(text: "This medicine needs a pharmacist-approved timing plan. No remaining doses or quantities have changed.")
                         } else if let result {
-                            Label("Timing review complete", systemImage: "checkmark.circle.fill").foregroundStyle(Theme.green)
+                            Label("Timing review complete", systemImage: "checkmark.circle.fill").foregroundStyle(Theme.accent)
                             ForEach(result.changes, id: \.doseId) { change in
                                 if let saved = store.state.changes.last(where: { $0.doseId == change.doseId }) {
-                                    HStack { Text(saved.oldTime.formatted(date: .omitted, time: .shortened)).strikethrough().foregroundStyle(.secondary); Image(systemName: "arrow.right"); Text(saved.newTime.formatted(date: .omitted, time: .shortened)).bold() }.font(.title2).card(Theme.sage)
+                                    HStack { Text(saved.oldTime.formatted(date: .omitted, time: .shortened)).strikethrough().foregroundStyle(Theme.muted); Image(systemName: "arrow.right"); Text(saved.newTime.formatted(date: .omitted, time: .shortened)).bold() }.font(.title2).card(Theme.accentSoft)
                                 }
                             }
                             Text(result.explanation).font(.title3)
-                            Text("Quantity remains \(med.doseText). The explanation and earlier time are saved in history.").foregroundStyle(.secondary)
+                            Text("Quantity remains \(med.doseText). The explanation and earlier time are saved in history.").foregroundStyle(Theme.muted)
                             Button("Read explanation aloud") { store.speech.speak(result.explanation, language: store.state.language) }.buttonStyle(PrimaryButtonStyle())
                         } else {
                             WarningBox(text: "This sample uses a 10-hour interval to preview timing changes. It is not a clinical dosing rule. Confirm schedule changes with your pharmacist.")
@@ -158,7 +158,7 @@ struct ReplanView: View {
                     }
                     DisclaimerView()
                 }.padding(24)
-            }.background(Theme.cream).navigationTitle("Late-dose review").navigationBarTitleDisplayMode(.inline)
+            }.background(Theme.background).navigationTitle("Late-dose review").navigationBarTitleDisplayMode(.inline)
                 .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
                 .onDisappear { store.speech.stop() }
         }

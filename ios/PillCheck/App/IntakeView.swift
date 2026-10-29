@@ -29,16 +29,16 @@ private struct SampleLabelCard: View {
                 Text("PillCheck").font(.system(size: 24, weight: .bold))
                 Spacer()
                 Text("SAMPLE LABEL").font(.system(size: 12, weight: .semibold)).tracking(1)
-            }.foregroundStyle(.white).padding(24).background(Theme.green)
+            }.foregroundStyle(.white).padding(24).background(Theme.accent)
             VStack(alignment: .leading, spacing: 16) {
-                Text("Alex Morgan").font(.system(size: 15)).foregroundStyle(.secondary)
+                Text("Alex Morgan").font(.system(size: 15)).foregroundStyle(Theme.muted)
                 Text(label.name).font(.system(size: 36, weight: .bold))
                 Text("\(label.ingredient) · \(label.strength)").font(.system(size: 19))
                 Divider()
                 Text("Take 1 tablet at \(label.times).").font(.system(size: 23, weight: .semibold))
                 if !label.instructions.isEmpty { Text(label.instructions).font(.system(size: 18)) }
                 Spacer(minLength: 0)
-                Text("Sample medicine details for exploring label scanning.").font(.system(size: 12)).foregroundStyle(.secondary)
+                Text("Sample medicine details for exploring label scanning.").font(.system(size: 12)).foregroundStyle(Theme.muted)
             }.padding(24)
         }.frame(width: 600, height: 400).foregroundStyle(Theme.ink).background(.white)
             .environment(\.colorScheme, .light).environment(\.dynamicTypeSize, .medium)
@@ -61,9 +61,9 @@ struct IntakeView: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
-                    Text("Start with a label.").font(.system(.largeTitle, design: .rounded, weight: .bold))
-                    Text("Scan a label or enter your medicine details. Review every field before saving.").foregroundStyle(.secondary)
-                    if busy { HStack { ProgressView(); Text("Reading the label…") }.font(.subheadline).card(Theme.sage) }
+                    Text("Add a medicine").font(Theme.pageTitle).tracking(-0.6)
+                    Text("Scan a label or enter your medicine details. Review every field before saving.").foregroundStyle(Theme.muted)
+                    if busy { HStack { ProgressView(); Text("Reading the label…") }.font(.subheadline).card(Theme.accentSoft) }
                     if let error { WarningBox(text: error + " No medicine has been added. Your selected image and text are retained.") }
                     if let imageData, let image = UIImage(data: imageData) { Image(uiImage: image).resizable().scaledToFit().frame(maxHeight: 180).clipShape(RoundedRectangle(cornerRadius: 12)) }
                     PhotosPicker(selection: $photo, matching: .images) { Label("Choose a label photo", systemImage: "photo") }.buttonStyle(PrimaryButtonStyle(secondary: true)).disabled(busy)
@@ -87,18 +87,18 @@ struct IntakeView: View {
                                     Task { await readImage(data) }
                                 } label: {
                                     HStack(spacing: 16) {
-                                        Image(systemName: "doc.text.viewfinder").font(.title2).foregroundStyle(Theme.green)
-                                        VStack(alignment: .leading, spacing: 5) { Text(sample.name).font(.headline); Text(sample.ingredient).font(.subheadline).foregroundStyle(.secondary) }
+                                        Image(systemName: "doc.text.viewfinder").font(.title2).foregroundStyle(Theme.accent)
+                                        VStack(alignment: .leading, spacing: 5) { Text(sample.name).font(.headline); Text(sample.ingredient).font(.subheadline).foregroundStyle(Theme.muted) }
                                         Spacer(); Image(systemName: "chevron.right")
                                     }.padding(.vertical, 10)
                                 }.buttonStyle(.plain).disabled(busy).accessibilityLabel("Scan sample \(sample.name)")
                             }
                         }.padding(.top, 10)
                     }.card()
-                    Text("The selected label is sent securely to Meta to read the medicine details. You review the results before saving.").font(.footnote).foregroundStyle(.secondary)
+                    Text("The selected label is sent securely to Meta to read the medicine details. You review the results before saving.").font(.footnote).foregroundStyle(Theme.muted)
                     DisclaimerView()
                 }.padding(20)
-            }.background(Theme.cream).navigationTitle("Add medicine").navigationBarTitleDisplayMode(.inline)
+            }.background(Theme.background).navigationTitle("Add medicine").navigationBarTitleDisplayMode(.inline)
                 .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Close") { dismiss() } } }
                 .sheet(item: $draft) { draft in MedicineEditor(draft: draft, onSaved: { dismiss() }) }
                 .sheet(isPresented: $camera) { CameraPicker { data in if let data { imageData = data; Task { await readImage(data) } } } }
@@ -210,7 +210,7 @@ struct MedicineEditor: View {
                 }
                 Section("Copy the recorded prescription") {
                     field("Medicine name", text: nameBinding).accessibilityIdentifier("medicine-name")
-                    Text("Enter the brand or generic name from your label. The name is sent to Meta and U.S. medicine references to identify the ingredient.").font(.footnote).foregroundStyle(.secondary)
+                    Text("Enter the brand or generic name from your label. The name is sent to Meta and U.S. medicine references to identify the ingredient.").font(.footnote).foregroundStyle(Theme.muted)
                     ingredientDetails
                     if draft.isLiquid {
                         field("Bottle strength", text: $draft.liquidStrength, placeholder: "e.g. 250 mg / 5 mL").accessibilityIdentifier("liquid-strength")
@@ -228,7 +228,7 @@ struct MedicineEditor: View {
                 Section {
                     Toggle("I checked every field against my prescription", isOn: $reviewed)
                     if let error { Text(error).foregroundStyle(.red).accessibilityAddTraits(.isStaticText) }
-                    Text("Medicine names are checked with U.S. reference services. Medicine details and reference excerpts go to Meta; your name and dose history are not sent.").font(.footnote).foregroundStyle(.secondary)
+                    Text("Medicine names are checked with U.S. reference services. Medicine details and reference excerpts go to Meta; your name and dose history are not sent.").font(.footnote).foregroundStyle(Theme.muted)
                     Button { Task { await check() } } label: {
                         if checkingAI { HStack { ProgressView().tint(.white); Text("Checking references & AI…") } }
                         else { Label("Check with AI & references", systemImage: "sparkles") }
@@ -241,11 +241,11 @@ struct MedicineEditor: View {
                         if aiReview?.completed != true { WarningBox(text: "AI review is incomplete. Saving only records the prescription; it does not confirm that this combination is safe.") }
                         Toggle(aiReview?.completed == true ? "I reviewed the findings. I am recording an existing prescription and will confirm interactions and timing with my pharmacist." : "I understand the AI check is incomplete and am only recording an existing prescription.", isOn: $acknowledged)
                         Button("Save recorded prescription") { save() }.buttonStyle(PrimaryButtonStyle()).disabled(!acknowledged)
-                        Text("The AI timing draft is for pharmacist review. It never changes the times entered above.").font(.footnote).foregroundStyle(.secondary)
+                        Text("The AI timing draft is for pharmacist review. It never changes the times entered above.").font(.footnote).foregroundStyle(Theme.muted)
                     }
                 }
                 Section { DisclaimerView() }
-            }.disabled(checkingAI).scrollContentBackground(.hidden).background(Theme.cream)
+            }.disabled(checkingAI).scrollContentBackground(.hidden).background(Theme.background)
                 .navigationTitle(draft.original == nil ? "Review medicine" : "Update regimen").navigationBarTitleDisplayMode(.inline)
                 .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } } }
                 .onChange(of: draft) { _, _ in clearCheck() }
@@ -255,20 +255,20 @@ struct MedicineEditor: View {
     @ViewBuilder private var ingredientDetails: some View {
         if manualIngredient {
             field("Active ingredient from your label", text: $draft.ingredient)
-            Text("For a combination product, include every active ingredient.").font(.footnote).foregroundStyle(.secondary)
+            Text("For a combination product, include every active ingredient.").font(.footnote).foregroundStyle(Theme.muted)
         } else if identifying {
             HStack { ProgressView(); Text("Identifying active ingredient…") }.font(.subheadline)
         } else if !draft.ingredient.isEmpty {
             VStack(alignment: .leading, spacing: 8) {
-                Label("Active ingredient", systemImage: "pills").font(.caption).foregroundStyle(.secondary)
+                Label("Active ingredient", systemImage: "pills").font(.caption).foregroundStyle(Theme.muted)
                 Text(draft.ingredient).font(.headline)
-                Text(identification?.message ?? "Check this ingredient against your prescription label.").font(.footnote).foregroundStyle(.secondary)
+                Text(identification?.message ?? "Check this ingredient against your prescription label.").font(.footnote).foregroundStyle(Theme.muted)
                 if let source = identification?.sourceURL, let url = URL(string: source) { Link("View medicine reference", destination: url).font(.footnote) }
             }.padding(.vertical, 4)
         } else if let ingredientIssue {
             Text(ingredientIssue).font(.subheadline).foregroundStyle(Theme.amber)
         } else {
-            Text("The active ingredient will appear here after you enter the medicine name.").font(.subheadline).foregroundStyle(.secondary)
+            Text("The active ingredient will appear here after you enter the medicine name.").font(.subheadline).foregroundStyle(Theme.muted)
         }
         if !manualIngredient {
             Button(draft.ingredient.isEmpty ? "Enter ingredient manually" : "Correct ingredient") {
@@ -309,7 +309,7 @@ struct MedicineEditor: View {
     }
     private func field(_ label: String, text: Binding<String>, placeholder: String? = nil) -> some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text(label).font(.caption).foregroundStyle(.secondary)
+            Text(label).font(.caption).foregroundStyle(Theme.muted)
             TextField(placeholder ?? label, text: text).textInputAutocapitalization(.never).autocorrectionDisabled().accessibilityLabel(label)
         }.padding(.vertical, 4)
     }

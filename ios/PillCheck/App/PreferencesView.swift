@@ -11,8 +11,8 @@ struct PreferencesView: View {
         NavigationStack {
             Form {
                 Section {
-                    Text("A little help, your way.").font(.system(.title, design: .rounded, weight: .bold))
-                    Text("Your medication history is stored on this iPhone and is available offline.").foregroundStyle(.secondary)
+                    Text("Make it yours.").font(Theme.sectionTitle)
+                    Text("Your medication history is stored on this iPhone and is available offline.").foregroundStyle(Theme.muted)
                 }
                 Section("Voice & language") {
                     Picker("Spoken language", selection: Binding(get: { store.state.language }, set: { value in update { $0.language = value } })) {
@@ -20,18 +20,18 @@ struct PreferencesView: View {
                         Text("Español").tag("es-ES")
                         Text("हिन्दी").tag("hi-IN")
                     }
-                    Text("Hear reminders in your preferred language. Previously generated reminders are available for offline playback. Voice confirmation uses on-device recognition when supported.").font(.footnote).foregroundStyle(.secondary)
+                    Text("Hear reminders in your preferred language. Previously generated reminders are available for offline playback. Voice confirmation uses on-device recognition when supported.").font(.footnote).foregroundStyle(Theme.muted)
                 }
                 NotificationSettings(store: store, reminders: store.notifications)
                 Section {
                   DisclosureGroup("Sample medicines & previews") {
-                    Text("PillCheck includes sample medicines and 30 days of sample history to help you explore the app.").font(.footnote).foregroundStyle(.secondary)
+                    Text("PillCheck includes sample medicines and 30 days of sample history to help you explore the app.").font(.footnote).foregroundStyle(Theme.muted)
                     Toggle("Preview reminders at another time", isOn: Binding(get: { store.state.practiceClockEnabled }, set: { value in do { try store.setPractice(value) } catch { store.error = error.localizedDescription } }))
                     if store.state.practiceClockEnabled {
                         DatePicker("Preview time", selection: Binding(get: { store.state.practiceTime }, set: { value in update { $0.practiceTime = value }; store.refresh() }), displayedComponents: .hourAndMinute)
                     }
                     Button("Preview a late check-in") { lateIntro = true }
-                    Text("Previews pause notifications and use the selected time for check-ins. Saved check-ins remain in history when you end the preview.").font(.footnote).foregroundStyle(.secondary)
+                    Text("Previews pause notifications and use the selected time for check-ins. Saved check-ins remain in history when you end the preview.").font(.footnote).foregroundStyle(Theme.muted)
                   }
                 }
                 Section("Recorded class concerns") {
@@ -40,17 +40,17 @@ struct PreferencesView: View {
                         update { $0.problems = problems.split(separator: ",").map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }; $0.audit.append(AuditEntry(type: "class_concerns_updated", at: Date(), reason: "Recorded medication-class concerns updated.")) }
                         store.notice = "Medication-class concerns saved."
                     }
-                    Text("This records a known problem with a medicine class. It is not a diagnosis or allergy assessment.").font(.footnote).foregroundStyle(.secondary)
+                    Text("This records a known problem with a medicine class. It is not a diagnosis or allergy assessment.").font(.footnote).foregroundStyle(Theme.muted)
                 }
                 Section("AI assistance") {
-                    Text("AI helps read labels, review ingredients and interactions, and explain timing. These checks require an internet connection. Review findings with your pharmacist before changing your prescription.").font(.footnote).foregroundStyle(.secondary)
+                    Text("AI helps read labels, review ingredients and interactions, and explain timing. These checks require an internet connection. Review findings with your pharmacist before changing your prescription.").font(.footnote).foregroundStyle(Theme.muted)
                 }
                 Section("Your records") {
                     Button { shareRecords = true } label: { Label("Export all records (JSON)", systemImage: "square.and.arrow.up") }
-                    Text("There is no delete-history control. Earlier regimens, confirmations, and audit entries are retained. Keep an export before uninstalling the app or replacing this iPhone.").font(.footnote).foregroundStyle(.secondary)
+                    Text("There is no delete-history control. Earlier regimens, confirmations, and audit entries are retained. Keep an export before uninstalling the app or replacing this iPhone.").font(.footnote).foregroundStyle(Theme.muted)
                 }
                 Section { DisclaimerView() }
-            }.scrollContentBackground(.hidden).background(Theme.cream).navigationTitle("Preferences").navigationBarTitleDisplayMode(.inline)
+            }.scrollContentBackground(.hidden).background(Theme.background).navigationTitle("Preferences").navigationBarTitleDisplayMode(.inline)
                 .onAppear { problems = store.state.problems.joined(separator: ", ") }
                 .sheet(isPresented: $shareRecords) { ShareSheet(items: [store.fileURL]) }
                 .sheet(isPresented: $showReplan) { if let id = store.lateDoseID { ReplanView(doseID: id) } }
@@ -77,11 +77,11 @@ struct NotificationSettings: View {
                 Text("2 hours").tag(120)
                 Text("4 hours").tag(240)
             }
-            Text("Reminders repeat at the dose time, after 15 minutes, then every 30 minutes until confirmed or the window ends. The iPhone schedules them locally, including while the app is closed or offline.").font(.footnote).foregroundStyle(.secondary)
+            Text("Reminders repeat at the dose time, after 15 minutes, then every 30 minutes until confirmed or the window ends. The iPhone schedules them locally, including while the app is closed or offline.").font(.footnote).foregroundStyle(Theme.muted)
             if store.state.remindersEnabled {
                 LabeledContent("Queued alerts", value: "\(reminders.scheduledCount)")
                 if let coverage = reminders.coveredThrough { Text("Queued through \(coverage.formatted(date: .abbreviated, time: .shortened)). Open PillCheck regularly to extend this queue.").font(.footnote) }
-                Text("iOS has a finite pending-alert queue. This app queues up to 60 dose alerts, plus a daily prompt to reopen it. Sound and presentation depend on your notification and Focus settings.").font(.footnote).foregroundStyle(.secondary)
+                Text("iOS has a finite pending-alert queue. This app queues up to 60 dose alerts, plus a daily prompt to reopen it. Sound and presentation depend on your notification and Focus settings.").font(.footnote).foregroundStyle(Theme.muted)
                 Button("Send a test notification in 10 seconds") {
                     Task {
                         do {
