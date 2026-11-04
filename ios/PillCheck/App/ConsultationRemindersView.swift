@@ -3,7 +3,7 @@ import SwiftUI
 struct ConsultationCheckbox: View {
     @Binding var isSelected: Bool
     let medicineNames: String
-    var savesWithPrescription = false
+    var needsSave = false
     var body: some View {
         Button { isSelected.toggle() } label: {
             HStack(alignment: .top, spacing: 12) {
@@ -11,7 +11,7 @@ struct ConsultationCheckbox: View {
                     .font(.title2).foregroundStyle(Theme.accent).accessibilityHidden(true)
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Consult with doctor").font(.headline).foregroundStyle(Theme.ink).fixedSize(horizontal: false, vertical: true)
-                    Text(savesWithPrescription ? "Saves to Reminders with this medicine." : isSelected ? "Added to Reminders" : "Add a follow-up to Reminders.")
+                    Text(needsSave ? "Save with this medicine or use Save consultations only." : isSelected ? "Added to Reminders" : "Add a follow-up to Reminders.")
                         .font(.footnote).foregroundStyle(Theme.muted).fixedSize(horizontal: false, vertical: true)
                 }
                 Spacer(minLength: 0)
@@ -19,7 +19,7 @@ struct ConsultationCheckbox: View {
         }.buttonStyle(.plain)
             .accessibilityLabel("Consult with doctor about \(medicineNames)")
             .accessibilityValue(isSelected ? "Checked" : "Unchecked")
-            .accessibilityHint(isSelected ? "Uncheck to remove the pending follow-up." : "Check to add a doctor follow-up.")
+            .accessibilityHint(needsSave ? "Select this follow-up, then save it with the medicine or save consultations only." : isSelected ? "Uncheck to remove the pending follow-up." : "Check to add a doctor follow-up.")
     }
 }
 
@@ -84,6 +84,15 @@ struct ConsultationRemindersView: View {
             Label("Consult with doctor", systemImage: "stethoscope").font(Theme.sectionTitle)
             Text(reminder.concern.medicineNames).font(.headline)
             Text(reminder.concern.title).font(.subheadline.weight(.semibold)).foregroundStyle(Theme.amber)
+            if let proposed = reminder.proposedMedication {
+                VStack(alignment: .leading, spacing: 6) {
+                    Label("Saved for discussion", systemImage: "text.bubble").font(.subheadline.weight(.semibold))
+                    Text("\(proposed.name) · \(proposed.strengthText) · \(proposed.doseText)")
+                    Text("Entered times: \(proposed.times.joined(separator: " · "))")
+                    Text("Saving this consultation did not change your medicine schedule.").foregroundStyle(Theme.muted)
+                }.font(.footnote).padding(12).frame(maxWidth: .infinity, alignment: .leading)
+                    .background(Theme.accentSoft, in: RoundedRectangle(cornerRadius: 12))
+            }
             Text(reminder.concern.detail.components(separatedBy: "\n").filter { $0 != reminder.concern.title }.joined(separator: "\n")).font(.subheadline)
             Text("Review from \(reminder.concern.reviewedAt.formatted(date: .abbreviated, time: .shortened)). Saved details may differ from your current prescription.")
                 .font(.footnote).foregroundStyle(Theme.muted)

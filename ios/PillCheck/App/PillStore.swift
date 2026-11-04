@@ -144,6 +144,9 @@ final class PillStore: ObservableObject {
     func setConsultationSelected(_ selected: Bool, concern: ConsultationConcern) throws {
         try change { try ConsultationReminderEngine.setSelected(selected, concern: concern, state: &$0, at: Date()) }
     }
+    func saveConsultationsOnly(_ concerns: [ConsultationConcern], medication: Medication) throws {
+        try change { try ConsultationReminderEngine.saveForDiscussion(concerns, medication: medication, state: &$0, at: Date()) }
+    }
     func setConsultationStatus(_ status: ConsultationReminder.Status, id: String) throws {
         try change { try ConsultationReminderEngine.setStatus(status, id: id, state: &$0, at: Date()) }
     }

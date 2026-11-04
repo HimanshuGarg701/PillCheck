@@ -40,7 +40,7 @@ struct MedicationReviewContent: View {
     }
     @ViewBuilder private func consultation(_ concern: ConsultationConcern) -> some View {
         if let consultationSelection {
-            ConsultationCheckbox(isSelected: consultationSelection(concern), medicineNames: concern.medicineNames, savesWithPrescription: true)
+            ConsultationCheckbox(isSelected: consultationSelection(concern), medicineNames: concern.medicineNames, needsSave: true)
         } else { SavedConsultationCheckbox(concern: concern) }
     }
 }
@@ -85,7 +85,7 @@ private struct MedicationReviewDetails: View {
                     if !pair.hasRisk, let concern = review.consultationConcern(for: pair) {
                         Divider()
                         if let consultationSelection {
-                            ConsultationCheckbox(isSelected: consultationSelection(concern), medicineNames: concern.medicineNames, savesWithPrescription: true)
+                            ConsultationCheckbox(isSelected: consultationSelection(concern), medicineNames: concern.medicineNames, needsSave: true)
                         } else { SavedConsultationCheckbox(concern: concern) }
                     }
                 }.card(Theme.warningSoft)

@@ -171,6 +171,7 @@ struct MedicineEditor: View {
     @State private var quantityConfirmed = false
     @State private var aiReview: MedicationAIReview?
     @State private var selectedConsultations = Set<String>()
+    @State private var consultationsSaved = false
     @State private var checkingAI = false
     @State private var reviewRequest = UUID()
     @State private var reviewedList: [Medication] = []
@@ -268,14 +269,25 @@ struct MedicineEditor: View {
                 Section { DisclaimerView() }
             }.scrollContentBackground(.hidden).background(BrandBackdrop())
                 .safeAreaInset(edge: .bottom) {
-                    Button(draft.original == nil ? "Add medicine" : "Save changes") { save() }
-                        .buttonStyle(PrimaryButtonStyle())
-                        .disabled(!reviewed || identifying || (draft.largePillDose != nil && !quantityConfirmed) || (needsAcknowledgment && !acknowledged))
-                        .accessibilityIdentifier("save-medicine")
-                        .padding(.horizontal, 20).padding(.vertical, 10).background(.regularMaterial)
+                    VStack(spacing: 10) {
+                        if !consultationsToSave.isEmpty {
+                            Button("Save consultations only") { saveConsultationsOnly() }
+                                .buttonStyle(PrimaryButtonStyle(secondary: true))
+                                .disabled(checkingAI || identifying || consultationsSaved)
+                                .accessibilityIdentifier("save-consultations-only")
+                                .accessibilityHint("Saves selected follow-ups to Reminders without changing your medicine schedule.")
+                        }
+                        Button(draft.original == nil ? "Add medicine" : "Save changes") { save() }
+                            .buttonStyle(PrimaryButtonStyle())
+                            .disabled(!reviewed || identifying || (draft.largePillDose != nil && !quantityConfirmed) || (needsAcknowledgment && !acknowledged))
+                            .accessibilityIdentifier("save-medicine")
+                    }.padding(.horizontal, 20).padding(.vertical, 10).background(.regularMaterial)
                 }
                 .navigationTitle(draft.original == nil ? "Add medicine" : "Update regimen").navigationBarTitleDisplayMode(.inline)
                 .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Cancel") { reviewRequest = UUID(); dismiss() } } }
+                .alert("Consultations saved", isPresented: $consultationsSaved) {
+                    Button("Done") { dismiss(); onSaved() }
+                } message: { Text("Your selected follow-ups are in Reminders. Your medicine schedule has not changed.") }
                 .onChange(of: draft) { _, _ in clearCheck() }
                 .onChange(of: draft.pillDose) { _, _ in quantityConfirmed = false }
                 .onChange(of: draft.isLiquid) { _, _ in quantityConfirmed = false }
@@ -359,6 +371,17 @@ struct MedicineEditor: View {
         let concerns = aiReview?.consultationConcerns ?? []
         var seen = Set<String>()
         return concerns.filter { selectedConsultations.contains($0.id) && seen.insert($0.id).inserted }
+    }
+    private func saveConsultationsOnly() {
+        guard aiReview != nil, !checkingAI, !identifying, !consultationsSaved else { return }
+        guard reviewedList == store.state.medications else {
+            clearCheck(); error = "Your medicine list changed. Run a new Risk Factor Check before saving consultations."; return
+        }
+        do {
+            try store.saveConsultationsOnly(consultationsToSave, medication: draft.medication())
+            selectedConsultations = []
+            consultationsSaved = true
+        } catch { self.error = error.localizedDescription }
     }
     private func check() async {
         guard !identifying else { return }

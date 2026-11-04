@@ -92,6 +92,64 @@ final class ConsultationReminderTests: XCTestCase {
         XCTAssertEqual(state, before)
     }
 
+    func testConsultationsCanSaveWithoutSchedulingTheProposedMedicine() throws {
+        var state = state()
+        var candidate = try XCTUnwrap(state.medications.first { $0.id == "candidate" })
+        candidate.doseQuantity = 8
+        state.medications.removeAll { $0.id == candidate.id }
+        state.remindersEnabled = true
+        let before = state
+        let selected = Array(try review().consultationConcerns.prefix(2))
+        try ConsultationReminderEngine.saveForDiscussion(selected, medication: candidate, state: &state, at: day)
+        XCTAssertEqual(state.consultationReminders?.count, 2)
+        XCTAssertEqual(state.consultationReminders?.map(\.concern), selected)
+        XCTAssertTrue(state.consultationReminders!.allSatisfy { $0.proposedMedication == candidate })
+        XCTAssertEqual(state.medications, before.medications)
+        XCTAssertEqual(state.doses, before.doses)
+        XCTAssertEqual(state.flags, before.flags)
+        XCTAssertEqual(state.changes, before.changes)
+        XCTAssertEqual(state.medicationReviews, before.medicationReviews)
+        XCTAssertEqual(state.remindersEnabled, before.remindersEnabled)
+        XCTAssertEqual(ReminderPlanner.plan(state: state, now: day).requests, ReminderPlanner.plan(state: before, now: day).requests)
+        XCTAssertFalse(state.audit.contains { $0.type == "medicine_added" && !before.audit.contains($0) })
+        XCTAssertTrue(state.audit.last!.reason.contains("no schedule change"))
+        XCTAssertEqual(try PillTime.decoder().decode(PillCheckState.self, from: PillTime.encoder().encode(state)), state)
+    }
+
+    func testSavingSelectedConsultationsIsAtomicWhenAnotherMedicineIsMissing() throws {
+        var state = state()
+        let candidate = try XCTUnwrap(state.medications.first { $0.id == "candidate" })
+        state.medications.removeAll { $0.id == candidate.id }
+        let concern = try review().consultationConcerns[0]
+        var missing = candidate; missing.id = "missing"
+        let invalid = concern.replacingMedicine("metformin", with: missing)
+        let before = state
+        XCTAssertThrowsError(try ConsultationReminderEngine.saveForDiscussion([concern, invalid], medication: candidate, state: &state, at: day))
+        XCTAssertEqual(state, before)
+        XCTAssertThrowsError(try ConsultationReminderEngine.saveForDiscussion([], medication: candidate, state: &state, at: day))
+        XCTAssertEqual(state, before)
+    }
+
+    func testDiscussionOnlyConsultationDeduplicatesAndSupportsCompletionWithoutMedicationRecord() throws {
+        var state = state()
+        let candidate = try XCTUnwrap(state.medications.first { $0.id == "candidate" })
+        state.medications.removeAll { $0.id == candidate.id }
+        let concern = try review().consultationConcerns[0]
+        try ConsultationReminderEngine.saveForDiscussion([concern, concern], medication: candidate, state: &state, at: day)
+        XCTAssertEqual(state.consultationReminders?.count, 1)
+        let saved = state
+        try ConsultationReminderEngine.saveForDiscussion([concern], medication: candidate, state: &state, at: day.addingTimeInterval(30))
+        XCTAssertEqual(state, saved)
+        let id = try XCTUnwrap(state.consultationReminders?.first?.id)
+        try ConsultationReminderEngine.setStatus(.completed, id: id, state: &state, at: day)
+        try ConsultationReminderEngine.setStatus(.pending, id: id, state: &state, at: day)
+        try ConsultationReminderEngine.setSelected(false, concern: concern, state: &state, at: day)
+        XCTAssertEqual(state.consultationReminders?.first?.status, .removed)
+        XCTAssertEqual(state.consultationReminders?.first?.proposedMedication, candidate)
+        XCTAssertEqual(state.medications, saved.medications)
+        XCTAssertEqual(state.doses, saved.doses)
+    }
+
     func testEditedRegimenReminderAndSavedReviewUseNewMedicationID() throws {
         var state = state()
         var review = try review()

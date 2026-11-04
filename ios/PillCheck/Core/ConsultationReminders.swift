@@ -77,6 +77,8 @@ struct ConsultationReminder: Identifiable, Codable, Equatable {
     let createdAt: Date
     var status: Status = .pending
     var completedAt: Date?
+    // Details saved for discussion only; this is not a scheduled medication.
+    var proposedMedication: Medication? = nil
 }
 
 enum ConsultationReminderEngine {
@@ -84,17 +86,32 @@ enum ConsultationReminderEngine {
         state.consultationReminders?.first { $0.concern.id == concern.id && $0.status == .pending }
     }
 
-    static func setSelected(_ selected: Bool, concern: ConsultationConcern, state: inout PillCheckState, at: Date) throws {
-        guard !concern.medicines.isEmpty, concern.medicines.allSatisfy({ reference in state.medications.contains { $0.id == reference.id } }) else {
-            throw PillCheckError("Save the medication record before adding its doctor reminder.")
-        }
+    static func setSelected(_ selected: Bool, concern: ConsultationConcern, proposedMedication: Medication? = nil, state: inout PillCheckState, at: Date) throws {
         if let pending = pending(for: concern, in: state) {
             if !selected { try setStatus(.removed, id: pending.id, state: &state, at: at) }
-        } else if selected {
-            let reminder = ConsultationReminder(id: UUID().uuidString, concern: concern, createdAt: at)
-            state.consultationReminders = (state.consultationReminders ?? []) + [reminder]
-            state.audit.append(AuditEntry(type: "consultation_reminder_added", at: at, reason: "Consult with doctor: \(concern.medicineNames). \(concern.title)"))
+            return
         }
+        guard !concern.medicines.isEmpty, concern.medicines.allSatisfy({ reference in
+            reference.id == proposedMedication?.id || state.medications.contains { $0.id == reference.id }
+        }) else { throw PillCheckError("The medicine details for this doctor reminder could not be found.") }
+        if selected {
+            let reminder = ConsultationReminder(id: UUID().uuidString, concern: concern, createdAt: at, proposedMedication: proposedMedication)
+            state.consultationReminders = (state.consultationReminders ?? []) + [reminder]
+            let note = proposedMedication == nil ? "" : " Medicine details saved for discussion only; no schedule change."
+            state.audit.append(AuditEntry(type: "consultation_reminder_added", at: at, reason: "Consult with doctor: \(concern.medicineNames). \(concern.title)\(note)"))
+        }
+    }
+
+    static func saveForDiscussion(_ concerns: [ConsultationConcern], medication: Medication, state: inout PillCheckState, at: Date) throws {
+        let medication = try MedicationEngine.validate(medication)
+        guard !concerns.isEmpty, concerns.allSatisfy({ $0.medicines.contains { $0.id == medication.id } }) else {
+            throw PillCheckError("Select a consultation from this medicine’s risk check.")
+        }
+        var updated = state
+        for concern in concerns {
+            try setSelected(true, concern: concern, proposedMedication: medication, state: &updated, at: at)
+        }
+        state = updated
     }
 
     static func setStatus(_ status: ConsultationReminder.Status, id: String, state: inout PillCheckState, at: Date) throws {
