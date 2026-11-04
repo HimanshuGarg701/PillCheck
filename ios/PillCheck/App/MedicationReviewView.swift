@@ -2,6 +2,7 @@ import SwiftUI
 
 struct MedicationReviewContent: View {
     let review: MedicationAIReview
+    var consultationSelection: ((ConsultationConcern) -> Binding<Bool>)? = nil
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
             Label(review.completed ? "AI review complete" : "AI review incomplete", systemImage: review.completed ? "sparkles" : "exclamationmark.triangle")
@@ -35,6 +36,12 @@ struct MedicationReviewContent: View {
                             Text("“\(evidence.quote)”").font(.footnote).italic()
                             if let source = review.sources.first(where: { $0.id == evidence.sourceId }), let url = URL(string: source.url) { Link(source.title, destination: url).font(.footnote) }
                         }
+                    }
+                    if let concern = review.consultationConcern(for: pair) {
+                        Divider()
+                        if let consultationSelection {
+                            ConsultationCheckbox(isSelected: consultationSelection(concern), medicineNames: concern.medicineNames, savesWithPrescription: true)
+                        } else { SavedConsultationCheckbox(concern: concern) }
                     }
                 }.card(Theme.warningSoft)
             }

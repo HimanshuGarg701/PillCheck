@@ -62,7 +62,7 @@ struct MedicinesView: View {
                             Text("No known interaction found in this reference set.").font(.headline)
                             Text("The offline reference set covers one curated metformin/cimetidine pair. Use AI interactions & timing above for a review of retrieved U.S. references. No flag does not mean a combination is safe.").font(.subheadline).foregroundStyle(Theme.muted)
                         }.card()
-                    } else { ForEach(risks) { RiskFlagView(flag: $0) } }
+                    } else { ForEach(risks) { flag in RiskFlagView(flag: flag, consultation: ConsultationConcern.from(flag: flag, medications: store.state.medications)) } }
                     if let reviews = store.state.medicationReviews, !reviews.isEmpty {
                         Text("Saved AI review snapshots").font(.title2.bold())
                         Text("Historical reviews may no longer match your current list. Run a fresh check after any prescription change.").font(.subheadline).foregroundStyle(Theme.muted)

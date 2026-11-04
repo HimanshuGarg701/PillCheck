@@ -141,6 +141,7 @@ struct RootView: View {
                 TabView {
                     TodayView().tabItem { Label("Today", systemImage: "sun.max") }
                     MedicinesView().tabItem { Label("Medicines", systemImage: "pills") }
+                    ConsultationRemindersView().tabItem { Label("Reminders", systemImage: "checklist") }.badge(store.pendingConsultations.count)
                     HistoryView().tabItem { Label("History", systemImage: "clock.arrow.circlepath") }
                     PreferencesView().tabItem { Label("Preferences", systemImage: "slider.horizontal.3") }
                 }
@@ -197,7 +198,7 @@ struct TodayView: View {
                         Button { showReplan = true } label: { Label("Review the late-dose record", systemImage: "clock.badge.exclamationmark") }.buttonStyle(PrimaryButtonStyle(secondary: true))
                     }
                     let risks = MedicationEngine.activeRisks(store.state, now: store.now)
-                    if !risks.isEmpty { ForEach(risks) { RiskFlagView(flag: $0) } }
+                    if !risks.isEmpty { ForEach(risks) { flag in RiskFlagView(flag: flag, consultation: ConsultationConcern.from(flag: flag, medications: store.state.medications)) } }
                     VStack(alignment: .leading, spacing: 18) {
                         Text("Manage your medicines").font(Theme.sectionTitle)
                         Button { adding = true } label: { Label("Add a medicine", systemImage: "plus") }.buttonStyle(PrimaryButtonStyle(secondary: true))
@@ -282,12 +283,14 @@ struct DoseRow: View {
 
 struct RiskFlagView: View {
     let flag: RiskFlag
+    var consultation: ConsultationConcern? = nil
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             Label(flag.title, systemImage: "exclamationmark.triangle").font(.headline)
             Text(flag.explanation).font(.subheadline)
             if let total = flag.combinedMg { Text("Combined daily ingredient: \(PillTime.number(total)) mg").font(.headline) }
             if let source = flag.sourceURL, let url = URL(string: source) { Link("Reference: DailyMed prescribing information", destination: url).font(.footnote) }
+            if let consultation { SavedConsultationCheckbox(concern: consultation) }
         }.foregroundStyle(Theme.amber).card(Theme.warningSoft)
     }
 }

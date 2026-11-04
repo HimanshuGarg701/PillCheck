@@ -149,6 +149,7 @@ struct PillCheckState: Codable, Equatable {
     var lastGeneratedDay: Date
     var spokenCache: [String: String] = [:]
     var medicationReviews: [MedicationAIReview]? = nil
+    var consultationReminders: [ConsultationReminder]? = nil
 }
 
 struct ScanResult: Codable {

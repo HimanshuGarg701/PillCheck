@@ -166,6 +166,7 @@ struct MedicineEditor: View {
     @State private var candidate: Medication?
     @State private var flags: [RiskFlag] = []
     @State private var aiReview: MedicationAIReview?
+    @State private var selectedConsultations = Set<String>()
     @State private var checkingAI = false
     @State private var reviewRequest = UUID()
     @State private var reviewedList: [Medication] = []
@@ -234,10 +235,15 @@ struct MedicineEditor: View {
                         else { Label("Check with AI & references", systemImage: "sparkles") }
                     }.buttonStyle(PrimaryButtonStyle()).disabled(!reviewed || checkingAI || identifying || draft.ingredient.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 }
-                if let aiReview { Section { MedicationReviewContent(review: aiReview) } }
+                if let aiReview { Section { MedicationReviewContent(review: aiReview, consultationSelection: consultationBinding) } }
                 if candidate != nil && !checkingAI {
                     Section("Before this joins your schedule") {
-                        ForEach(flags) { RiskFlagView(flag: $0) }
+                        ForEach(flags) { flag in
+                            RiskFlagView(flag: flag)
+                            if let concern = ConsultationConcern.from(flag: flag, medications: store.state.medications, candidate: candidate) {
+                                ConsultationCheckbox(isSelected: consultationBinding(concern), medicineNames: concern.medicineNames, savesWithPrescription: true)
+                            }
+                        }
                         if aiReview?.completed != true { WarningBox(text: "AI review is incomplete. Saving only records the prescription; it does not confirm that this combination is safe.") }
                         Toggle(aiReview?.completed == true ? "I reviewed the findings. I am recording an existing prescription and will confirm interactions and timing with my pharmacist." : "I understand the AI check is incomplete and am only recording an existing prescription.", isOn: $acknowledged)
                         Button("Save recorded prescription") { save() }.buttonStyle(PrimaryButtonStyle()).disabled(!acknowledged)
@@ -315,10 +321,22 @@ struct MedicineEditor: View {
     }
     private func clearCheck() {
         reviewRequest = UUID(); checkingAI = false; candidate = nil; flags = []; aiReview = nil; acknowledged = false; reviewed = false
+        selectedConsultations = []
+    }
+    private func consultationBinding(_ concern: ConsultationConcern) -> Binding<Bool> {
+        Binding(get: { selectedConsultations.contains(concern.id) }, set: { selected in
+            if selected { selectedConsultations.insert(concern.id) } else { selectedConsultations.remove(concern.id) }
+        })
+    }
+    private var consultationsToSave: [ConsultationConcern] {
+        let concerns = (aiReview?.consultationConcerns ?? []) + flags.compactMap { ConsultationConcern.from(flag: $0, medications: store.state.medications, candidate: candidate) }
+        var seen = Set<String>()
+        return concerns.filter { selectedConsultations.contains($0.id) && seen.insert($0.id).inserted }
     }
     private func check() async {
         guard !identifying else { return }
         error = nil; candidate = nil; aiReview = nil; acknowledged = false
+        selectedConsultations = []
         let request = UUID(); reviewRequest = request
         do {
             let m = try draft.medication()
@@ -340,7 +358,7 @@ struct MedicineEditor: View {
         guard reviewedList == store.state.medications else {
             clearCheck(); error = "Your medication list changed. Run the review again before saving."; return
         }
-        do { try store.save(candidate, replacing: draft.original?.id, acknowledged: acknowledged, review: aiReview); dismiss(); onSaved() }
+        do { try store.save(candidate, replacing: draft.original?.id, acknowledged: acknowledged, review: aiReview, consultations: consultationsToSave); dismiss(); onSaved() }
         catch { self.error = error.localizedDescription }
     }
 }

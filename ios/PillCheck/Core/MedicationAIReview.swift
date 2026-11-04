@@ -83,5 +83,7 @@ struct MedicationAIReview: Identifiable, Codable, Equatable {
     let source: String
     let model: String
     let requestId: String?
+    // Associates an intake snapshot with the regimen actually saved after an edit.
+    var savedMedicationID: String? = nil
     var completed: Bool { aiStatus == "completed" }
 }

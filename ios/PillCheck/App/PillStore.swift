@@ -122,17 +122,30 @@ final class PillStore: ObservableObject {
         }
         notice = skipped ? "Skipped dose recorded." : "Confirmation saved at \(at.formatted(date: .omitted, time: .shortened))."
     }
-    func save(_ medication: Medication, replacing id: String?, acknowledged: Bool, review: MedicationAIReview? = nil) throws {
+    func save(_ medication: Medication, replacing id: String?, acknowledged: Bool, review: MedicationAIReview? = nil, consultations: [ConsultationConcern] = []) throws {
         let at = now
         try change {
-            try MedicationEngine.save(medication, replacing: id, acknowledged: acknowledged, state: &$0, now: at)
-            if let review {
+            let saved = try MedicationEngine.save(medication, replacing: id, acknowledged: acknowledged, state: &$0, now: at)
+            if var review {
+                review.savedMedicationID = saved.id
                 $0.medicationReviews = ($0.medicationReviews ?? []) + [review]
                 $0.audit.append(AuditEntry(type: "medication_ai_review", at: at, reason: "\(medication.name): AI review \(review.aiStatus). \(review.summary) No timing change was applied by this review.", source: review.source))
             } else {
                 $0.audit.append(AuditEntry(type: "medication_ai_review_incomplete", at: at, reason: "\(medication.name): prescription saved with an explicitly acknowledged incomplete AI review."))
             }
+            for concern in consultations {
+                try ConsultationReminderEngine.setSelected(true, concern: concern.replacingMedicine(medication.id, with: saved), state: &$0, at: at)
+            }
         }
+    }
+    var pendingConsultations: [ConsultationReminder] {
+        (state.consultationReminders ?? []).filter { $0.status == .pending }.sorted { $0.createdAt > $1.createdAt }
+    }
+    func setConsultationSelected(_ selected: Bool, concern: ConsultationConcern) throws {
+        try change { try ConsultationReminderEngine.setSelected(selected, concern: concern, state: &$0, at: Date()) }
+    }
+    func setConsultationStatus(_ status: ConsultationReminder.Status, id: String) throws {
+        try change { try ConsultationReminderEngine.setStatus(status, id: id, state: &$0, at: Date()) }
     }
     func archive(_ id: String, reason: String) throws {
         let at = now

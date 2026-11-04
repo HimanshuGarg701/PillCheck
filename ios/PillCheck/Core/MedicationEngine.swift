@@ -63,9 +63,12 @@ enum MedicationEngine {
     static func activeRisks(_ state: PillCheckState, now: Date) -> [RiskFlag] {
         var seen = Set<String>()
         return state.medications.filter { $0.status == .active }.flatMap { med in
-            risks(for: med, in: state, now: now).filter { flag in
+            risks(for: med, in: state, now: now).compactMap { flag in
                 let key = ([med.id] + flag.medications).sorted().joined(separator: ":") + flag.kind
-                return seen.insert(key).inserted
+                guard seen.insert(key).inserted else { return nil }
+                var linked = flag
+                linked.medications = Array(Set([med.id] + flag.medications)).sorted()
+                return linked
             }
         }
     }
@@ -104,7 +107,8 @@ enum MedicationEngine {
             }
         }
     }
-    static func save(_ candidate: Medication, replacing oldID: String?, acknowledged: Bool, state: inout PillCheckState, now: Date) throws {
+    @discardableResult
+    static func save(_ candidate: Medication, replacing oldID: String?, acknowledged: Bool, state: inout PillCheckState, now: Date) throws -> Medication {
         var med = try validate(candidate)
         guard PillTime.day(med.startDate) >= PillTime.day(now) else { throw PillCheckError("New regimens must start today or later. Past records stay unchanged.") }
         if oldID != nil && !PillTime.sameDay(med.startDate, now) { throw PillCheckError("Regimen updates take effect today. Add a separate record for a future start date.") }
@@ -128,6 +132,7 @@ enum MedicationEngine {
         state.doses.append(contentsOf: schedule(med, on: now).filter { $0.scheduledAt >= now })
         state.flags.append(contentsOf: flags.map { var f = $0; f.acknowledgedAt = now; return f })
         state.audit.append(AuditEntry(type: oldID == nil ? "medicine_added" : "regimen_updated", at: now, reason: "\(med.name): reviewed \(PillTime.number(med.doseQuantity)) \(med.doseUnit), \(med.times.joined(separator: ", ")). \(flags.count) flags acknowledged.", source: med.source))
+        return med
     }
     static func archive(_ id: String, state: inout PillCheckState, now: Date, reason: String) throws {
         guard !reason.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,

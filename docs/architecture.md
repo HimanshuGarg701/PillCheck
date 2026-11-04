@@ -24,6 +24,10 @@ Each listening attempt has a session identifier. Closing or changing cards, open
 
 ## Reminders
 
+The Reminders tab stores optional doctor follow-ups in `PillCheckState.consultationReminders`, alongside the existing protected local records. `ConsultationReminderEngine` manages pending, completed, and removed states, with timestamps and audit entries. Optional fields preserve decoding of earlier records. Medicine IDs form a stable pair/group key, preventing duplicate pending items across fresh or reversed reviews. Completed and unchecked entries remain in the saved history. Completion never clears risk flags, confirms doses, or changes notification timing.
+
+AI/reference pair findings and offline flags offer a `Consult with doctor` checkbox. Saved-medicine reviews persist the selection immediately. Intake holds selections in the form until prescription save; draft changes and cancellation discard them. The prescription, review snapshot, and selected follow-ups commit through the same copy/write/publish transaction. Regimen edits associate new reminders and the saved review with the new medication ID. Follow-ups preserve the original names, explanation, review timestamp, sources, excerpt qualifications, and evidence, even after a medicine is stopped. They are in-app tasks without a due date or separate consultation notification.
+
 `ReminderPlanner` produces a chronological queue from recorded doses and the next 30 days of the regimen. It groups simultaneous doses and creates the required 0, 15, 45, 75… minute cadence within the configured window. It selects at most 60 requests, leaving room for a test notification and a daily generic queue-refresh prompt.
 
 `LocalReminders` submits local calendar notifications to UNUserNotificationCenter. It serializes reconciliation so an older asynchronous update cannot cancel a newer queue. Completion, skipping, regimen changes, and timing changes reconcile pending and delivered alerts. Notification taps open review cards; they do not silently confirm medication. The pending coverage horizon is visible in Preferences.
