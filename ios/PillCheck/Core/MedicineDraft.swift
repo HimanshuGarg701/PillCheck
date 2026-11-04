@@ -20,6 +20,18 @@ struct MedicineDraft: Identifiable, Equatable {
     var uncertain: [String] = []
 
     init(startDate: Date = Date()) { self.startDate = startDate }
+    static func glucophageSample(startDate: Date) -> Self {
+        var draft = Self(startDate: startDate)
+        draft.name = "Glucophage"
+        draft.ingredient = "metformin"
+        draft.strength = "500"
+        draft.pillDose = "1 tablet"
+        draft.frequency = "Twice daily"
+        draft.times = "08:00, 18:00"
+        draft.instructions = "Take with meals."
+        draft.source = "sample"
+        return draft
+    }
     init(medicine: Medication, now: Date) {
         original = medicine
         name = medicine.name; ingredient = medicine.ingredient

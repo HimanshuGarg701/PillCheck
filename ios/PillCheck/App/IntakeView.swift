@@ -73,6 +73,11 @@ struct IntakeView: View {
                     }
                     if let cameraPermissionMessage { WarningBox(text: cameraPermissionMessage) }
                     Button("Enter medicine manually") { draft = MedicineDraft(startDate: store.now) }.buttonStyle(PrimaryButtonStyle()).disabled(busy)
+                    Button { draft = .glucophageSample(startDate: store.now) } label: {
+                        Label("Pick sample", systemImage: "list.bullet.rectangle")
+                    }.buttonStyle(PrimaryButtonStyle(secondary: true)).disabled(busy)
+                        .accessibilityHint("Open a prefilled Glucophage sample for review.")
+                        .accessibilityIdentifier("pick-sample-medicine")
                     VStack(alignment: .leading, spacing: 12) {
                         Text("Or paste label text").font(.headline)
                         TextEditor(text: $labelText).frame(minHeight: 120).padding(8).background(.white, in: RoundedRectangle(cornerRadius: 12)).accessibilityLabel("Label text")
@@ -202,6 +207,9 @@ struct MedicineEditor: View {
                     Toggle(isOn: $draft.isLiquid) {
                         Label("Liquid medicine", systemImage: draft.isLiquid ? "drop.fill" : "pills")
                     }.accessibilityIdentifier("liquid-medicine")
+                }
+                if draft.source == "sample" {
+                    Section { Text("Sample medicine details. Review the fields before saving.").font(.subheadline).foregroundStyle(Theme.muted) }
                 }
                 if draft.source == "meta-reviewed" {
                     Section("Review label details") {

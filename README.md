@@ -27,7 +27,9 @@ The app starts with a sample profile for Alex Morgan, three medicines, and 30 da
 - **History:** filter dates and medicines, inspect adherence, and export a native PDF through the iOS share sheet.
 - **Preferences:** choose English, Spanish, or Hindi for speech; enable local notifications; export all records as JSON; or expand **Sample medicines & previews** to explore check-ins at another time. Reminder previews pause notifications.
 
-Medicine entry defaults to pills. Enter the dose in one field, such as `1 tablet` or `2 capsules`; there is no separate quantity field or high-risk toggle. Automatic high-risk checks remain active. Turn on **Liquid medicine** at the top of the form to enter the prescribed amount in mL and copy the bottle strength, such as `250 mg / 5 mL`. Reminders and exports retain the mL dose and bottle concentration.
+Medicine entry defaults to pills. **Add medicine → Pick sample** opens an editable Glucophage sample with metformin, 500 mg, 1 tablet, twice daily at 08:00 and 18:00, with meals, starting on the current app date. Picking it does not save a prescription or run label extraction; the existing review and acknowledgment steps still apply. The separate **Try a sample label** control continues to exercise label scanning.
+
+Enter the dose in one field, such as `1 tablet` or `2 capsules`; there is no separate quantity field or high-risk toggle. Automatic high-risk checks remain active. Turn on **Liquid medicine** at the top of the form to enter the prescribed amount in mL and copy the bottle strength, such as `250 mg / 5 mL`. Reminders and exports retain the mL dose and bottle concentration.
 
 The late-dose replan workflow is limited to the seeded metformin scenario. Its 10-hour spacing belongs to that sample schedule and is not clinical guidance. The separate AI medication review can offer a pharmacist-review timing draft for the supported label-spacing rule described below. Quantities never change through either workflow.
 
