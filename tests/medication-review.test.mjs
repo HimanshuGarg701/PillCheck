@@ -6,6 +6,7 @@ import {
   unavailableReview,
   separated,
   validateReviewInput,
+  reviewPrompt,
 } from "../server/medication-review.mjs";
 import { runTask } from "../server/meta.mjs";
 
@@ -125,6 +126,35 @@ test("review resolves same ingredient under another brand from RxNorm, not model
   assert.equal(review.source, "meta");
   assert.equal(review.timing.proposedTimes.length, 0);
   assert.ok(review.sources.every((s) => !Object.hasOwn(s, "text")));
+});
+test("stopped history is excluded before reference lookup, model input and returned comparisons", async () => {
+  const stopped = { ...med("stopped-glucophage", "Archived Glucophage", "metformin"), status: "stopped", endDate: new Date().toISOString() };
+  const input = { ...body, medications: [...body.medications, stopped] };
+  const original = structuredClone(input);
+  const lookups = [];
+  const context = await prepareReview(input, { fetchImpl: async (url) => {
+    lookups.push(new URL(url));
+    return mockReferences(url);
+  } });
+  assert.ok(lookups.every((url) => url.searchParams.get("name") !== stopped.name));
+  assert.deepEqual(context.medications.map((m) => m.id), ["old"]);
+  assert.ok(context.identities.every((m) => m.medicationId !== stopped.id));
+  assert.ok(!reviewPrompt(context).includes(stopped.id));
+  assert.deepEqual(finishReview(context, aiFor(context)).pairs.map((m) => m.medicationId), ["old"]);
+  assert.deepEqual(unavailableReview(context, "Provider unavailable").pairs.map((m) => m.medicationId), ["old"]);
+  const inventedHistory = aiFor(context);
+  inventedHistory.pairs[0].medicationId = stopped.id;
+  assert.throws(() => finishReview(context, inventedHistory), /every medicine/);
+  assert.deepEqual(input, original);
+});
+test("history-only medicine list produces no comparisons while retaining the candidate dose assessment", async () => {
+  const context = await prepareReview({ ...body, medications: [{ ...body.medications[0], status: "stopped" }] }, { fetchImpl: mockReferences });
+  assert.deepEqual(context.medications, []);
+  const response = aiFor(context);
+  response.doseAssessment = { finding: "potential_high_dose", basis: "quantity", evidence: [] };
+  const result = finishReview(context, response);
+  assert.deepEqual(result.pairs, []);
+  assert.equal(result.doseAssessment.finding, "potential_high_dose");
 });
 test("AI cannot omit medicines, erase deterministic duplicate flags, invent citations, or certify safety", async () => {
   const c = await prepareReview(body, { fetchImpl: mockReferences });

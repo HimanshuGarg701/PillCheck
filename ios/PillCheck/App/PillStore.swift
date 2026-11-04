@@ -156,9 +156,7 @@ final class PillStore: ObservableObject {
         try change { try MedicationEngine.setSchedulePaused(paused, for: id, state: &$0, now: at) }
     }
     func otherMedicines(for medication: Medication) -> [Medication] {
-        state.medications.filter { other in
-            other.id != medication.id && (other.status == .active || other.endDate.map { $0 <= now && now.timeIntervalSince($0) <= 30 * 86400 } == true)
-        }
+        MedicationEngine.reviewMedicines(for: medication, in: state.medications)
     }
     func spoken(_ med: Medication) async throws -> String {
         let key = "reminder-v2|\(med.name)|\(med.doseQuantity)|\(med.doseUnit)|\(state.language)"

@@ -3,6 +3,33 @@ import XCTest
 
 final class RiskFactorCheckTests: XCTestCase {
     let day = Date(timeIntervalSince1970: 1_793_145_600)
+    func testRiskCheckUsesActiveListWithoutStoppedGlucophageOrEarlierRegimens() throws {
+        var state = SeedData.make(now: day)
+        let activeIDs = state.medications.filter { $0.status == .active }.map(\.id)
+        let candidate = try MedicineDraft.glucophageSample(startDate: day).medication()
+        for (id, ended) in [("stopped-today", Optional(day)), ("stopped-last-month", Optional(PillTime.addingDays(-31, to: day))), ("stopped-without-date", nil)] {
+            var stopped = candidate
+            stopped.id = id; stopped.status = .stopped; stopped.endDate = ended
+            state.medications.append(stopped)
+        }
+        let before = state
+        XCTAssertEqual(MedicationEngine.reviewMedicines(for: candidate, in: state.medications).map(\.id), activeIDs)
+        XCTAssertEqual(state, before)
+    }
+    func testReviewExcludesItselfAndOldVersionsButKeepsOtherActiveMedicinesWithPausedReminders() throws {
+        var state = SeedData.make(now: day)
+        let old = state.medications[0]
+        var updated = old; updated.strengthMg = 750; updated.startDate = day
+        let saved = try MedicationEngine.save(updated, replacing: old.id, acknowledged: false, state: &state, now: day)
+        let otherID = state.medications[1].id
+        try MedicationEngine.setSchedulePaused(true, for: otherID, state: &state, now: day)
+        let comparisons = MedicationEngine.reviewMedicines(for: saved, in: state.medications)
+        XCTAssertEqual(Set(comparisons.map(\.id)), Set(state.medications.filter { $0.status == .active && $0.id != saved.id }.map(\.id)))
+        XCTAssertFalse(comparisons.contains { $0.id == old.id || $0.id == saved.id })
+        XCTAssertTrue(comparisons.contains { $0.id == otherID && $0.isSchedulePaused })
+        let archived = try XCTUnwrap(state.medications.first { $0.id == old.id })
+        XCTAssertTrue(MedicationEngine.reviewMedicines(for: saved, in: [archived, saved]).isEmpty)
+    }
     func testMedicineCanBeAddedWithoutAIReviewAndHistoryIsPreserved() throws {
         var state = SeedData.make(now: day)
         let history = state.doses

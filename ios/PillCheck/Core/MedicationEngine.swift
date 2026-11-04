@@ -41,6 +41,10 @@ enum MedicationEngine {
             return DoseEvent(id: "\(med.id):\(PillTime.key(date)):\(time)", medicationId: med.id, scheduledAt: at, originalScheduledAt: at)
         }
     }
+    static func reviewMedicines(for candidate: Medication, in medications: [Medication]) -> [Medication] {
+        // Match the active medicine list. Pausing reminders does not stop a medicine.
+        medications.filter { $0.status == .active && $0.id != candidate.id }
+    }
     static func risks(for candidate: Medication, in state: PillCheckState, now: Date) -> [RiskFlag] {
         let others = state.medications.filter { $0.id != candidate.id }
         let duplicates = others.filter { $0.status == .active && canonical($0.ingredient) == canonical(candidate.ingredient) }

@@ -65,7 +65,7 @@ private struct MedicationReviewDetails: View {
                 }.card(Theme.accentSoft)
             }
             Text("Compared with your list").font(.title2.bold())
-            if review.pairs.isEmpty { Text("No other active or recently stopped medicines were supplied. This does not establish safety.").foregroundStyle(Theme.muted) }
+            if review.pairs.isEmpty { Text("No other medicines from your active list were supplied. This does not establish safety.").foregroundStyle(Theme.muted) }
             ForEach(review.pairs) { pair in
                 VStack(alignment: .leading, spacing: 12) {
                     Text("\(review.candidateName) + \(pair.medicationName)").font(.headline)
