@@ -108,7 +108,7 @@ enum MedicationEngine {
         }
     }
     @discardableResult
-    static func save(_ candidate: Medication, replacing oldID: String?, acknowledged: Bool, state: inout PillCheckState, now: Date) throws -> Medication {
+    static func save(_ candidate: Medication, replacing oldID: String?, acknowledged: Bool, review: MedicationAIReview? = nil, state: inout PillCheckState, now: Date) throws -> Medication {
         var med = try validate(candidate)
         if oldID == nil && state.medications.contains(where: {
             $0.status == .active && canonical($0.name) == canonical(med.name)
@@ -117,8 +117,7 @@ enum MedicationEngine {
         }) { throw PillCheckError("This medicine and schedule are already recorded.") }
         guard PillTime.day(med.startDate) >= PillTime.day(now) else { throw PillCheckError("New regimens must start today or later. Past records stay unchanged.") }
         if oldID != nil && !PillTime.sameDay(med.startDate, now) { throw PillCheckError("Regimen updates take effect today. Add a separate record for a future start date.") }
-        let flags = risks(for: med, in: state, now: now)
-        guard flags.isEmpty || acknowledged else { throw PillCheckError("Read and acknowledge the risk flags before saving.") }
+        guard review?.requiresAcknowledgment != true || acknowledged else { throw PillCheckError("Read and acknowledge the Risk Factor Check findings before saving.") }
         if PillTime.sameDay(med.startDate, now) { med.startDate = now }
         if let oldID {
             guard let oldIndex = state.medications.firstIndex(where: { $0.id == oldID && $0.status == .active }) else { throw PillCheckError("The earlier regimen is no longer active.") }
@@ -135,8 +134,8 @@ enum MedicationEngine {
         }
         state.medications.append(med)
         state.doses.append(contentsOf: schedule(med, on: now).filter { $0.scheduledAt >= now })
-        state.flags.append(contentsOf: flags.map { var f = $0; f.acknowledgedAt = now; return f })
-        state.audit.append(AuditEntry(type: oldID == nil ? "medicine_added" : "regimen_updated", at: now, reason: "\(med.name): reviewed \(PillTime.number(med.doseQuantity)) \(med.doseUnit), \(med.times.joined(separator: ", ")). \(flags.count) flags acknowledged.", source: med.source))
+        let reviewNote = review == nil ? "No Risk Factor Check snapshot recorded." : review?.requiresAcknowledgment == true ? "Risk Factor Check findings acknowledged." : "Risk Factor Check snapshot recorded."
+        state.audit.append(AuditEntry(type: oldID == nil ? "medicine_added" : "regimen_updated", at: now, reason: "\(med.name): reviewed \(PillTime.number(med.doseQuantity)) \(med.doseUnit), \(med.times.joined(separator: ", ")). \(reviewNote)", source: med.source))
         return med
     }
     static func archive(_ id: String, state: inout PillCheckState, now: Date, reason: String) throws {

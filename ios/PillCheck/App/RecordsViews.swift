@@ -55,14 +55,6 @@ struct MedicinesView: View {
                                 .font(.subheadline.weight(.medium)).foregroundStyle(Theme.danger).frame(maxWidth: .infinity, minHeight: 44)
                         }.card()
                     }
-                    Text("Offline reference checks").font(.title2.bold())
-                    let risks = MedicationEngine.activeRisks(store.state, now: store.now)
-                    if risks.isEmpty {
-                        VStack(alignment: .leading, spacing: 12) {
-                            Text("No known interaction found in this reference set.").font(.headline)
-                            Text("The offline reference set covers one curated metformin/cimetidine pair. Use Risk Factor Check above for a review of retrieved U.S. references. No flag does not mean a combination is safe.").font(.subheadline).foregroundStyle(Theme.muted)
-                        }.card()
-                    } else { ForEach(risks) { flag in RiskFlagView(flag: flag, consultation: ConsultationConcern.from(flag: flag, medications: store.state.medications)) } }
                     if let reviews = store.state.medicationReviews, !reviews.isEmpty {
                         Text("Previous risk checks").font(.title2.bold())
                         Text("Historical reviews may no longer match your current list. Run a fresh check after any prescription change.").font(.subheadline).foregroundStyle(Theme.muted)

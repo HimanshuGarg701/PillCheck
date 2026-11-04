@@ -125,7 +125,7 @@ final class PillStore: ObservableObject {
     func save(_ medication: Medication, replacing id: String?, acknowledged: Bool, review: MedicationAIReview? = nil, consultations: [ConsultationConcern] = []) throws {
         let at = now
         try change {
-            let saved = try MedicationEngine.save(medication, replacing: id, acknowledged: acknowledged, state: &$0, now: at)
+            let saved = try MedicationEngine.save(medication, replacing: id, acknowledged: acknowledged, review: review, state: &$0, now: at)
             if var review {
                 review.savedMedicationID = saved.id
                 $0.medicationReviews = ($0.medicationReviews ?? []) + [review]

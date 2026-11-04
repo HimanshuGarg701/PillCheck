@@ -13,17 +13,31 @@ final class RiskFactorCheckTests: XCTestCase {
         XCTAssertTrue(state.medicationReviews?.isEmpty ?? true)
         for dose in history { XCTAssertEqual(state.doses.first { $0.id == dose.id }, dose) }
     }
-    func testSkippingAIStillRequiresLocalRiskAcknowledgmentAndPreventsExactDuplicates() throws {
+    func testSkippingAIDoesNotGenerateRiskFlagsOrAcknowledgmentsAndPreventsExactDuplicates() throws {
         var state = SeedData.make(now: day)
         let candidate = try MedicineDraft.glucophageSample(startDate: day).medication()
         let before = state
-        XCTAssertThrowsError(try MedicationEngine.save(candidate, replacing: nil, acknowledged: false, state: &state, now: day))
-        XCTAssertEqual(state, before)
-        try MedicationEngine.save(candidate, replacing: nil, acknowledged: true, state: &state, now: day)
+        try MedicationEngine.save(candidate, replacing: nil, acknowledged: false, state: &state, now: day)
+        XCTAssertEqual(state.flags, before.flags)
+        XCTAssertTrue(state.audit.last!.reason.contains("No Risk Factor Check snapshot recorded."))
+        XCTAssertFalse(state.audit.last!.reason.contains("acknowledged"))
         let after = state
         var duplicate = candidate; duplicate.id = "another-record"
         XCTAssertThrowsError(try MedicationEngine.save(duplicate, replacing: nil, acknowledged: true, state: &state, now: day))
         XCTAssertEqual(state, after)
+    }
+    func testOnlyRequestedReviewFindingsRequireAcknowledgment() throws {
+        var state = SeedData.make(now: day)
+        let candidate = try MedicineDraft.glucophageSample(startDate: day).medication()
+        let url = Bundle.module.url(forResource: "review", withExtension: "json", subdirectory: "Fixtures")!
+        let review = try PillTime.decoder().decode(MedicationAIReview.self, from: Data(contentsOf: url))
+        XCTAssertTrue(review.requiresAcknowledgment)
+        let before = state
+        XCTAssertThrowsError(try MedicationEngine.save(candidate, replacing: nil, acknowledged: false, review: review, state: &state, now: day))
+        XCTAssertEqual(state, before)
+        try MedicationEngine.save(candidate, replacing: nil, acknowledged: true, review: review, state: &state, now: day)
+        XCTAssertEqual(state.flags, before.flags)
+        XCTAssertTrue(state.audit.last!.reason.contains("Risk Factor Check findings acknowledged."))
     }
     func testMoreThanSixPillsRequiresExactQuantityConfirmationWithoutBrandRules() throws {
         var draft = MedicineDraft.glucophageSample(startDate: day)
@@ -64,9 +78,6 @@ final class RiskFactorCheckTests: XCTestCase {
         let duplicate = try XCTUnwrap(review.pairs.first)
         XCTAssertTrue(duplicate.hasRisk)
         XCTAssertTrue(duplicate.conciseMessage.contains(duplicate.medicationName))
-        XCTAssertTrue(review.represents(RiskFlag(kind: "duplicate", title: "Duplicate", explanation: "Shared ingredient", medications: [duplicate.medicationId], at: day)))
-        XCTAssertFalse(review.represents(RiskFlag(kind: "interaction", title: "Interaction", explanation: "Known concern", medications: ["unresolved-by-ai"], at: day)))
-        XCTAssertFalse(review.represents(RiskFlag(kind: "history", title: "History", explanation: "Recorded concern", at: day)))
         let unknown = MedicationAIReview.Pair(medicationId: "unknown", medicationName: "Other medicine", status: "active", ingredientFinding: "uncertain", overlapIngredients: [], duplicateBasis: "", interactionFinding: "uncertain", spacingMinutes: nil, spacingSourceId: nil, explanation: "Missing references", evidence: [])
         XCTAssertFalse(unknown.hasRisk)
         XCTAssertTrue(unknown.needsMoreInformation)

@@ -12,9 +12,6 @@ final class SafetyTests: XCTestCase {
         let flags = MedicationEngine.risks(for: candidate, in: state, now: day)
         XCTAssertEqual(flags.first?.combinedMg, 2000)
         XCTAssertFalse(flags.first!.explanation.contains("safe to mix"))
-        var mutable = state
-        XCTAssertThrowsError(try MedicationEngine.save(candidate, replacing: nil, acknowledged: false, state: &mutable, now: day))
-        XCTAssertEqual(state, mutable)
     }
     func testHighRiskCannotBeTurnedOffByCheckbox() throws {
         var med = SeedData.medicines(now: day)[0]

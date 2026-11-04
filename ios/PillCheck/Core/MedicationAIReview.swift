@@ -102,15 +102,5 @@ struct MedicationAIReview: Identifiable, Codable, Equatable {
     var completed: Bool { aiStatus == "completed" }
     var alertPairs: [Pair] { pairs.filter(\.hasRisk) }
     var incompletePairs: [Pair] { pairs.filter { !$0.hasRisk && $0.needsMoreInformation } }
-    func represents(_ flag: RiskFlag) -> Bool {
-        if flag.kind == "dose" { return hasDoseConcern }
-        guard ["duplicate", "interaction"].contains(flag.kind), !flag.medications.isEmpty else { return false }
-        return flag.medications.allSatisfy { id in
-            pairs.contains { pair in
-                pair.medicationId == id && (flag.kind == "duplicate"
-                    ? pair.ingredientFinding == "possible_duplicate"
-                    : pair.interactionFinding == "potential_interaction")
-            }
-        }
-    }
+    var requiresAcknowledgment: Bool { !alertPairs.isEmpty || hasDoseConcern }
 }

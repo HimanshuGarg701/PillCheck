@@ -26,7 +26,7 @@ Each listening attempt has a session identifier. Closing or changing cards, open
 
 The Reminders tab stores optional doctor follow-ups in `PillCheckState.consultationReminders`, alongside the existing protected local records. `ConsultationReminderEngine` manages pending, completed, and removed states, with timestamps and audit entries. Optional fields preserve decoding of earlier records. Medicine IDs form a stable pair/group key, preventing duplicate pending items across fresh or reversed reviews. Completed and unchecked entries remain in the saved history. Completion never clears risk flags, confirms doses, or changes notification timing.
 
-AI/reference pair findings and offline flags offer a `Consult with doctor` checkbox. Saved-medicine reviews persist the selection immediately. Intake holds selections in the form until prescription save; draft changes and cancellation discard them. The prescription, review snapshot, and selected follow-ups commit through the same copy/write/publish transaction. Regimen edits associate new reminders and the saved review with the new medication ID. Follow-ups preserve the original names, explanation, review timestamp, sources, excerpt qualifications, and evidence, even after a medicine is stopped. They are in-app tasks without a due date or separate consultation notification.
+Findings returned by an explicitly requested Risk Factor Check offer a `Consult with doctor` checkbox. Saved-medicine reviews persist the selection immediately. Intake holds selections in the form until prescription save; draft changes and cancellation discard them. The prescription, review snapshot, and selected follow-ups commit through the same copy/write/publish transaction. Regimen edits associate new reminders and the saved review with the new medication ID. Follow-ups preserve the original names, explanation, review timestamp, sources, excerpt qualifications, and evidence, even after a medicine is stopped. They are in-app tasks without a due date or separate consultation notification.
 
 `ReminderPlanner` produces a chronological queue from recorded doses and the next 30 days of the regimen. It groups simultaneous doses and creates the required 0, 15, 45, 75… minute cadence within the configured window. It selects at most 60 requests, leaving room for a test notification and a daily generic queue-refresh prompt.
 
@@ -48,6 +48,8 @@ The JavaScript server shares `shared/domain.js` with backend tests. Swift implem
 
 ## Medication review
 
+Risk warnings are generated only for an explicitly requested Risk Factor Check. Automatic ingredient identification remains separate from clinical review. The editor, Today and Medicines views do not run the legacy local risk functions. Saving without a review validates the prescription and prevents an exact duplicate active record, but creates no risk flags or acknowledgment claim. When a returned review contains a shared-ingredient, interaction, spacing or dose concern, saving requires acknowledgment of that review. Historical flags and saved reviews remain readable.
+
 `server/medication-review.mjs` validates a limited medicine-only input, resolves names with RxNorm, retrieves oral ingredient label references from openFDA, and builds the evidence supplied to Meta. Server-generated source IDs and URLs cannot be supplied by the client. The model must cover every pair and use exact supplied quotes for substantive interaction findings. Validation prevents the model from erasing reference flags or inventing sources. Resolution and retrieval failures are uncertainty, not a negative interaction check. Sources disclose ingredient-only matching and excerpt truncation.
 
 The shared reference deadline is 12 seconds, duplicate lookups are coalesced within a request, and successful name-to-ingredient identities are cached for one day. The Meta call retains its bounded timeout and retries. The review route can return reference-only findings with `aiStatus: unavailable`; that is never labeled live AI success. The native client allows 60 seconds, matching the Vercel function limit.
@@ -62,7 +64,7 @@ The root HTML is a small migration notice. `/sw.js` replaces the prior PWA worke
 
 ## Boundaries
 
-- Preloaded sample records; one offline interaction pair, live U.S. label-excerpt review, and limited name/class matching. These do not form a comprehensive clinical interaction database.
+- Preloaded sample records, optional live U.S. label-excerpt review, and limited name/class matching. These do not form a comprehensive clinical interaction database.
 - No cloud record sync, account recovery, caregiver escalation, or travel-time-zone management.
 - Native UI is English; spoken reminders and explanations support English, Spanish, and Hindi, subject to available voices/on-device recognition.
 - A 60-alert queue provides a visible finite coverage horizon, not indefinite offline operation.

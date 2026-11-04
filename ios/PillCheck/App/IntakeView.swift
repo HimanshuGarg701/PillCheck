@@ -188,9 +188,7 @@ struct MedicineEditor: View {
         _ingredientForName = State(initialValue: draft.ingredient.isEmpty ? "" : IngredientIdentification.nameKey(draft.name))
     }
     private var candidate: Medication? { try? draft.medication() }
-    private var flags: [RiskFlag] { candidate.map { MedicationEngine.risks(for: $0, in: store.state, now: store.now) } ?? [] }
-    private var needsAcknowledgment: Bool { !flags.isEmpty || !(aiReview?.alertPairs.isEmpty ?? true) || aiReview?.hasDoseConcern == true }
-    private var visibleFlags: [RiskFlag] { flags.filter { aiReview?.represents($0) != true } }
+    private var needsAcknowledgment: Bool { aiReview?.requiresAcknowledgment == true }
     private var enteredName: String { IngredientIdentification.nameKey(draft.name) }
     private var nameBinding: Binding<String> {
         Binding(get: { draft.name }, set: { name in
@@ -264,19 +262,6 @@ struct MedicineEditor: View {
                     }
                 }
                 if let aiReview { Section { MedicationReviewContent(review: aiReview, consultationSelection: consultationBinding) } }
-                if reviewed && !visibleFlags.isEmpty {
-                    Section("Things to check") {
-                        ForEach(Array(visibleFlags.enumerated()), id: \.offset) { _, flag in
-                            VStack(alignment: .leading, spacing: 10) {
-                                Label(flag.kind == "interaction" ? "Possible interaction" : flag.title, systemImage: "exclamationmark.triangle.fill").font(.headline).foregroundStyle(Theme.amber)
-                                Text(flag.kind == "interaction" ? "May not go well with \(store.state.medications.filter { flag.medications.contains($0.id) }.map(\.name).joined(separator: ", "))." : flag.explanation)
-                                if let concern = ConsultationConcern.from(flag: flag, medications: store.state.medications, candidate: candidate) {
-                                    ConsultationCheckbox(isSelected: consultationBinding(concern), medicineNames: concern.medicineNames, savesWithPrescription: true)
-                                }
-                            }.padding(.vertical, 4)
-                        }
-                    }
-                }
                 if reviewed && needsAcknowledgment {
                     Section { Toggle("I’ve read these concerns", isOn: $acknowledged) }
                 }
@@ -295,7 +280,7 @@ struct MedicineEditor: View {
                 .onChange(of: draft.pillDose) { _, _ in quantityConfirmed = false }
                 .onChange(of: draft.isLiquid) { _, _ in quantityConfirmed = false }
                 .onChange(of: store.state.medications) { _, _ in
-                    clearCheck(); error = "Your medicine list changed. Check the details and concerns before adding."
+                    clearCheck(); error = "Your medicine list changed. Confirm the medicine details before adding."
                 }
                 .task(id: "\(enteredName)|\(ingredientRetry)") { await identifyIngredient() }
         }
@@ -371,7 +356,7 @@ struct MedicineEditor: View {
         })
     }
     private var consultationsToSave: [ConsultationConcern] {
-        let concerns = (aiReview?.consultationConcerns ?? []) + flags.compactMap { ConsultationConcern.from(flag: $0, medications: store.state.medications, candidate: candidate) }
+        let concerns = aiReview?.consultationConcerns ?? []
         var seen = Set<String>()
         return concerns.filter { selectedConsultations.contains($0.id) && seen.insert($0.id).inserted }
     }
@@ -393,7 +378,7 @@ struct MedicineEditor: View {
     private func save() {
         guard reviewed, !identifying, !needsAcknowledgment || acknowledged else { return }
         if (aiReview != nil || checkingAI) && reviewedList != store.state.medications {
-            clearCheck(); error = "Your medicine list changed. Check the details and concerns before adding."; return
+            clearCheck(); error = "Your medicine list changed. Confirm the medicine details before adding."; return
         }
         do {
             let medication = try draft.medicationForSaving(quantityConfirmed: quantityConfirmed)
