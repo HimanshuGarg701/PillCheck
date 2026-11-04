@@ -34,7 +34,16 @@ struct ConsultationConcern: Identifiable, Codable, Equatable {
 }
 
 extension MedicationAIReview {
-    var consultationConcerns: [ConsultationConcern] { pairs.compactMap { consultationConcern(for: $0) } }
+    var consultationConcerns: [ConsultationConcern] { pairs.compactMap { consultationConcern(for: $0) } + (doseConsultationConcern.map { [$0] } ?? []) }
+
+    var doseConsultationConcern: ConsultationConcern? {
+        let otherIDs = Set(pairs.map(\.medicationId))
+        guard let dose = doseCheck, dose.isHigh,
+              let candidateID = savedMedicationID ?? identities.first(where: { !otherIDs.contains($0.medicationId) })?.medicationId else { return nil }
+        return ConsultationConcern(medicines: [.init(id: candidateID, name: candidateName)], title: "Dose may be too high",
+            detail: dose.message + " Adult label ceiling only; personal limits may be lower.", reviewedAt: createdAt, reviewID: id,
+            sources: [.init(id: "dose-label", title: "FDA prescribing information · adult dosage", url: dose.sourceURL, truncated: false, note: "Glucophage / Glucophage XR, May 2018, sections 2.1 and 3. Adult ceiling only; individual suitability is not assessed.")], evidence: [])
+    }
 
     func consultationConcern(for pair: Pair) -> ConsultationConcern? {
         let needsReview = pair.ingredientFinding != "different_ingredients"

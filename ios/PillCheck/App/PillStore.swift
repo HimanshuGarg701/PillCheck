@@ -131,7 +131,7 @@ final class PillStore: ObservableObject {
                 $0.medicationReviews = ($0.medicationReviews ?? []) + [review]
                 $0.audit.append(AuditEntry(type: "medication_ai_review", at: at, reason: "\(medication.name): AI review \(review.aiStatus). \(review.summary) No timing change was applied by this review.", source: review.source))
             } else {
-                $0.audit.append(AuditEntry(type: "medication_ai_review_incomplete", at: at, reason: "\(medication.name): prescription saved with an explicitly acknowledged incomplete AI review."))
+                $0.audit.append(AuditEntry(type: "medication_saved_without_ai_review", at: at, reason: "\(medication.name): saved without an AI review snapshot."))
             }
             for concern in consultations {
                 try ConsultationReminderEngine.setSelected(true, concern: concern.replacingMedicine(medication.id, with: saved), state: &$0, at: at)

@@ -45,8 +45,11 @@ enum MedicationEngine {
         let others = state.medications.filter { $0.id != candidate.id }
         let duplicates = others.filter { $0.status == .active && canonical($0.ingredient) == canonical(candidate.ingredient) }
         var flags: [RiskFlag] = []
+        if let dose = MedicationDoseCheck.assess(candidate), dose.isHigh {
+            flags.append(RiskFlag(kind: "dose", title: "Dose may be too high", explanation: dose.message, sourceURL: dose.sourceURL, at: now))
+        }
         if !duplicates.isEmpty {
-            flags.append(RiskFlag(kind: "duplicate", title: "Same ingredient, different label", explanation: "This has the same active ingredient as \(duplicates.map(\.name).joined(separator: ", ")). Taking both can double your daily dose. Check with your doctor before starting this.", medications: duplicates.map(\.id), combinedMg: candidate.dailyMg + duplicates.reduce(0) { $0 + $1.dailyMg }, at: now))
+            flags.append(RiskFlag(kind: "duplicate", title: "Same active ingredient", explanation: "May contain the same active ingredient as \(duplicates.map(\.name).joined(separator: ", ")). Taking both can increase your total dose.", medications: duplicates.map(\.id), combinedMg: candidate.dailyMg + duplicates.reduce(0) { $0 + $1.dailyMg }, at: now))
         }
         for other in others {
             let recentlyStopped = other.status == .stopped && other.endDate.map { $0 <= now && now.timeIntervalSince($0) <= 30 * 86400 } == true
@@ -110,6 +113,11 @@ enum MedicationEngine {
     @discardableResult
     static func save(_ candidate: Medication, replacing oldID: String?, acknowledged: Bool, state: inout PillCheckState, now: Date) throws -> Medication {
         var med = try validate(candidate)
+        if oldID == nil && state.medications.contains(where: {
+            $0.status == .active && canonical($0.name) == canonical(med.name)
+                && $0.strengthMg == med.strengthMg && $0.doseQuantity == med.doseQuantity
+                && $0.doseUnit == med.doseUnit && $0.strengthVolumeMl == med.strengthVolumeMl && $0.times == med.times
+        }) { throw PillCheckError("This medicine and schedule are already recorded.") }
         guard PillTime.day(med.startDate) >= PillTime.day(now) else { throw PillCheckError("New regimens must start today or later. Past records stay unchanged.") }
         if oldID != nil && !PillTime.sameDay(med.startDate, now) { throw PillCheckError("Regimen updates take effect today. Add a separate record for a future start date.") }
         let flags = risks(for: med, in: state, now: now)

@@ -4,6 +4,51 @@ struct MedicationReviewContent: View {
     let review: MedicationAIReview
     var consultationSelection: ((ConsultationConcern) -> Binding<Bool>)? = nil
     var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            ForEach(review.alertPairs) { pair in
+                VStack(alignment: .leading, spacing: 12) {
+                    Label(pair.ingredientFinding == "possible_duplicate" ? "Same active ingredient" : "Possible interaction", systemImage: "exclamationmark.triangle.fill").font(.headline).foregroundStyle(Theme.amber)
+                    Text(pair.conciseMessage)
+                    if pair.status == "stopped" { Text("Includes recently stopped \(pair.medicationName).").font(.footnote).foregroundStyle(Theme.muted) }
+                    if let concern = review.consultationConcern(for: pair) { consultation(concern) }
+                }.card(Theme.warningSoft)
+            }
+            if let dose = review.doseCheck, dose.isHigh {
+                VStack(alignment: .leading, spacing: 12) {
+                    Label("Dose may be too high", systemImage: "exclamationmark.triangle.fill").font(.headline).foregroundStyle(Theme.amber)
+                    Text(dose.message)
+                    if let concern = review.doseConsultationConcern { consultation(concern) }
+                }.card(Theme.warningSoft)
+            }
+            if !review.completed {
+                Text("Check incomplete. Some risks could not be assessed.").foregroundStyle(Theme.amber)
+            } else if !review.incompletePairs.isEmpty || review.alertPairs.contains(where: \.needsMoreInformation) {
+                Text("Some interactions could not be fully checked. See details.").font(.subheadline).foregroundStyle(Theme.amber)
+            } else if review.alertPairs.isEmpty {
+                Text(review.pairs.isEmpty ? "No other medicines to compare." : "No interaction flagged in the references checked.").font(.subheadline)
+            }
+            if review.doseCheck == nil {
+                Text("Dose limit could not be verified for this medicine.").font(.footnote).foregroundStyle(Theme.muted)
+            } else {
+                Text("Dose screening uses an adult label limit; your personal limit may be lower.").font(.footnote).foregroundStyle(Theme.muted)
+            }
+            Text("Confirm concerns with your doctor or pharmacist before changing your medicines.").font(.footnote).foregroundStyle(Theme.muted)
+            DisclosureGroup("Details & sources") {
+                MedicationReviewDetails(review: review, consultationSelection: consultationSelection).padding(.top, 12)
+            }
+        }
+    }
+    @ViewBuilder private func consultation(_ concern: ConsultationConcern) -> some View {
+        if let consultationSelection {
+            ConsultationCheckbox(isSelected: consultationSelection(concern), medicineNames: concern.medicineNames, savesWithPrescription: true)
+        } else { SavedConsultationCheckbox(concern: concern) }
+    }
+}
+
+private struct MedicationReviewDetails: View {
+    let review: MedicationAIReview
+    var consultationSelection: ((ConsultationConcern) -> Binding<Bool>)? = nil
+    var body: some View {
         VStack(alignment: .leading, spacing: 20) {
             Label(review.completed ? "AI review complete" : "AI review incomplete", systemImage: review.completed ? "sparkles" : "exclamationmark.triangle")
                 .font(.headline).foregroundStyle(review.completed ? Theme.success : Theme.amber)
@@ -37,7 +82,7 @@ struct MedicationReviewContent: View {
                             if let source = review.sources.first(where: { $0.id == evidence.sourceId }), let url = URL(string: source.url) { Link(source.title, destination: url).font(.footnote) }
                         }
                     }
-                    if let concern = review.consultationConcern(for: pair) {
+                    if !pair.hasRisk, let concern = review.consultationConcern(for: pair) {
                         Divider()
                         if let consultationSelection {
                             ConsultationCheckbox(isSelected: consultationSelection(concern), medicineNames: concern.medicineNames, savesWithPrescription: true)
@@ -68,7 +113,10 @@ struct MedicationReviewContent: View {
                     }
                 }.padding(.top, 12)
             }
-            DisclaimerView()
+            if let dose = review.doseCheck, let url = URL(string: dose.sourceURL) {
+                Text("Adult dose ceiling only. Age, kidney function, dose titration and individual instructions are not assessed.").font(.footnote)
+                Link("Dose reference · FDA prescribing information", destination: url).font(.footnote)
+            }
         }
     }
     private var shareText: String {
@@ -89,13 +137,15 @@ struct MedicationAIReviewView: View {
             BrandScrollView {
                 VStack(alignment: .leading, spacing: 22) {
                     Text(medication.name).font(Theme.pageTitle).tracking(-0.6)
-                    Text("Check possible interactions, shared active ingredients under different brands, and label-supported spacing. Includes active and recently stopped records.")
-                    Text("Medicine names go to U.S. reference services. The reviewed medicine details and reference excerpts go to Meta. Your name and dose history are not sent.").font(.footnote).foregroundStyle(Theme.muted)
+                    Text("Check for medicine conflicts, shared ingredients and dose concerns.")
+                    DisclosureGroup("What is shared?") {
+                        Text("Medicine details and references go to Meta; names also go to U.S. medicine reference services. Your name and dose history are not sent.").font(.footnote).foregroundStyle(Theme.muted)
+                    }
                     Button {
                         error = nil; review = nil; requestID = UUID()
                     } label: {
-                        if busy { HStack { ProgressView().tint(.white); Text("Checking references & AI…") } }
-                        else { Label(review == nil ? "Check with AI" : "Run a fresh review", systemImage: "sparkles") }
+                        if busy { HStack { ProgressView().tint(.white); Text("Checking…") } }
+                        else { Label("Risk Factor Check", systemImage: "sparkles") }
                     }.buttonStyle(PrimaryButtonStyle()).disabled(busy)
                     if busy {
                         Text("Checking medicine references and preparing your review. This can take up to a minute.").font(.subheadline).foregroundStyle(Theme.muted)
@@ -105,7 +155,7 @@ struct MedicationAIReviewView: View {
                     if let review { MedicationReviewContent(review: review) }
                     else if !busy { DisclaimerView() }
                 }.padding(20)
-            }.navigationTitle("AI medication review").navigationBarTitleDisplayMode(.inline)
+            }.navigationTitle("Risk Factor Check").navigationBarTitleDisplayMode(.inline)
                 .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { requestID = nil; dismiss() } } }
                 .task(id: requestID) {
                     guard let id = requestID else { return }

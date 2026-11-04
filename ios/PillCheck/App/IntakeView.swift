@@ -168,8 +168,6 @@ struct MedicineEditor: View {
     var onSaved: () -> Void = {}
     @State private var reviewed = false
     @State private var acknowledged = false
-    @State private var candidate: Medication?
-    @State private var flags: [RiskFlag] = []
     @State private var aiReview: MedicationAIReview?
     @State private var selectedConsultations = Set<String>()
     @State private var checkingAI = false
@@ -188,6 +186,10 @@ struct MedicineEditor: View {
         self.onSaved = onSaved
         _ingredientForName = State(initialValue: draft.ingredient.isEmpty ? "" : IngredientIdentification.nameKey(draft.name))
     }
+    private var candidate: Medication? { try? draft.medication() }
+    private var flags: [RiskFlag] { candidate.map { MedicationEngine.risks(for: $0, in: store.state, now: store.now) } ?? [] }
+    private var needsAcknowledgment: Bool { !flags.isEmpty || !(aiReview?.alertPairs.isEmpty ?? true) }
+    private var visibleFlags: [RiskFlag] { flags.filter { aiReview?.represents($0) != true } }
     private var enteredName: String { IngredientIdentification.nameKey(draft.name) }
     private var nameBinding: Binding<String> {
         Binding(get: { draft.name }, set: { name in
@@ -235,34 +237,53 @@ struct MedicineEditor: View {
                     field("Medication class, if known", text: $draft.riskClass)
                 }
                 Section {
-                    Toggle("I checked every field against my prescription", isOn: $reviewed)
+                    Toggle("I checked these details against my prescription", isOn: $reviewed)
                     if let error { Text(error).foregroundStyle(.red).accessibilityAddTraits(.isStaticText) }
-                    Text("Medicine names are checked with U.S. reference services. Medicine details and reference excerpts go to Meta; your name and dose history are not sent.").font(.footnote).foregroundStyle(Theme.muted)
-                    Button { Task { await check() } } label: {
-                        if checkingAI { HStack { ProgressView().tint(.white); Text("Checking references & AI…") } }
-                        else { Label("Check with AI & references", systemImage: "sparkles") }
-                    }.buttonStyle(PrimaryButtonStyle()).disabled(!reviewed || checkingAI || identifying || draft.ingredient.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 }
-                if let aiReview { Section { MedicationReviewContent(review: aiReview, consultationSelection: consultationBinding) } }
-                if candidate != nil && !checkingAI {
-                    Section("Before this joins your schedule") {
-                        ForEach(flags) { flag in
-                            RiskFlagView(flag: flag)
-                            if let concern = ConsultationConcern.from(flag: flag, medications: store.state.medications, candidate: candidate) {
-                                ConsultationCheckbox(isSelected: consultationBinding(concern), medicineNames: concern.medicineNames, savesWithPrescription: true)
-                            }
-                        }
-                        if aiReview?.completed != true { WarningBox(text: "AI review is incomplete. Saving only records the prescription; it does not confirm that this combination is safe.") }
-                        Toggle(aiReview?.completed == true ? "I reviewed the findings. I am recording an existing prescription and will confirm interactions and timing with my pharmacist." : "I understand the AI check is incomplete and am only recording an existing prescription.", isOn: $acknowledged)
-                        Button("Save recorded prescription") { save() }.buttonStyle(PrimaryButtonStyle()).disabled(!acknowledged)
-                        Text("The AI timing draft is for pharmacist review. It never changes the times entered above.").font(.footnote).foregroundStyle(Theme.muted)
+                Section {
+                    Button { Task { await check() } } label: {
+                        if checkingAI { HStack { ProgressView(); Text("Checking…") } }
+                        else { Label("Risk Factor Check", systemImage: "sparkles") }
+                    }.buttonStyle(PrimaryButtonStyle(secondary: true)).disabled(!reviewed || checkingAI || identifying || candidate == nil)
+                        .accessibilityIdentifier("risk-factor-check")
+                    Text("Optional · Check for medicine conflicts and dose concerns.").font(.footnote).foregroundStyle(Theme.muted)
+                    if checkingAI { Button("Cancel check") { reviewRequest = UUID(); checkingAI = false } }
+                    DisclosureGroup("What is shared?") {
+                        Text("Medicine details and references go to Meta; names also go to U.S. medicine reference services. Your name and dose history are not sent.").font(.footnote).foregroundStyle(Theme.muted)
                     }
                 }
+                if let aiReview { Section { MedicationReviewContent(review: aiReview, consultationSelection: consultationBinding) } }
+                if reviewed && !visibleFlags.isEmpty {
+                    Section("Things to check") {
+                        ForEach(Array(visibleFlags.enumerated()), id: \.offset) { _, flag in
+                            VStack(alignment: .leading, spacing: 10) {
+                                Label(flag.kind == "interaction" ? "Possible interaction" : flag.title, systemImage: "exclamationmark.triangle.fill").font(.headline).foregroundStyle(Theme.amber)
+                                Text(flag.kind == "interaction" ? "May not go well with \(store.state.medications.filter { flag.medications.contains($0.id) }.map(\.name).joined(separator: ", "))." : flag.explanation)
+                                if let concern = ConsultationConcern.from(flag: flag, medications: store.state.medications, candidate: candidate) {
+                                    ConsultationCheckbox(isSelected: consultationBinding(concern), medicineNames: concern.medicineNames, savesWithPrescription: true)
+                                }
+                            }.padding(.vertical, 4)
+                        }
+                    }
+                }
+                if reviewed && needsAcknowledgment {
+                    Section { Toggle("I’ve read these concerns", isOn: $acknowledged) }
+                }
                 Section { DisclaimerView() }
-            }.disabled(checkingAI).scrollContentBackground(.hidden).background(BrandBackdrop())
-                .navigationTitle(draft.original == nil ? "Review medicine" : "Update regimen").navigationBarTitleDisplayMode(.inline)
-                .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } } }
+            }.scrollContentBackground(.hidden).background(BrandBackdrop())
+                .safeAreaInset(edge: .bottom) {
+                    Button(draft.original == nil ? "Add medicine" : "Save changes") { save() }
+                        .buttonStyle(PrimaryButtonStyle())
+                        .disabled(!reviewed || identifying || (needsAcknowledgment && !acknowledged))
+                        .accessibilityIdentifier("save-medicine")
+                        .padding(.horizontal, 20).padding(.vertical, 10).background(.regularMaterial)
+                }
+                .navigationTitle(draft.original == nil ? "Add medicine" : "Update regimen").navigationBarTitleDisplayMode(.inline)
+                .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Cancel") { reviewRequest = UUID(); dismiss() } } }
                 .onChange(of: draft) { _, _ in clearCheck() }
+                .onChange(of: store.state.medications) { _, _ in
+                    clearCheck(); error = "Your medicine list changed. Check the details and concerns before adding."
+                }
                 .task(id: "\(enteredName)|\(ingredientRetry)") { await identifyIngredient() }
         }
     }
@@ -328,7 +349,7 @@ struct MedicineEditor: View {
         }.padding(.vertical, 4)
     }
     private func clearCheck() {
-        reviewRequest = UUID(); checkingAI = false; candidate = nil; flags = []; aiReview = nil; acknowledged = false; reviewed = false
+        reviewRequest = UUID(); checkingAI = false; aiReview = nil; acknowledged = false; reviewed = false
         selectedConsultations = []
     }
     private func consultationBinding(_ concern: ConsultationConcern) -> Binding<Bool> {
@@ -343,30 +364,32 @@ struct MedicineEditor: View {
     }
     private func check() async {
         guard !identifying else { return }
-        error = nil; candidate = nil; aiReview = nil; acknowledged = false
+        error = nil; aiReview = nil; acknowledged = false
         selectedConsultations = []
         let request = UUID(); reviewRequest = request
         do {
             let m = try draft.medication()
-            if draft.original == nil && store.state.medications.contains(where: { $0.status == .active && MedicationEngine.canonical($0.name) == MedicationEngine.canonical(m.name) && $0.strengthMg == m.strengthMg && $0.doseQuantity == m.doseQuantity && $0.doseUnit == m.doseUnit && $0.strengthVolumeMl == m.strengthVolumeMl && $0.times == m.times }) {
-                error = "This exact medicine and schedule are already recorded. No duplicate was added."
-                return
-            }
-            candidate = m; flags = MedicationEngine.risks(for: m, in: store.state, now: store.now)
             reviewedList = store.state.medications
             checkingAI = true
             defer { if reviewRequest == request { checkingAI = false } }
             let result = try await store.meta.review(candidate: m, medications: store.otherMedicines(for: m))
-            guard reviewRequest == request else { return }
-            aiReview = result
-        } catch { self.error = error.localizedDescription }
+            guard reviewRequest == request, reviewedList == store.state.medications else { return }
+            aiReview = result; acknowledged = false
+        } catch { if reviewRequest == request { self.error = error.localizedDescription } }
     }
     private func save() {
-        guard let candidate, acknowledged, reviewed, !checkingAI else { return }
-        guard reviewedList == store.state.medications else {
-            clearCheck(); error = "Your medication list changed. Run the review again before saving."; return
+        guard reviewed, !identifying, !needsAcknowledgment || acknowledged else { return }
+        if (aiReview != nil || checkingAI) && reviewedList != store.state.medications {
+            clearCheck(); error = "Your medicine list changed. Check the details and concerns before adding."; return
         }
-        do { try store.save(candidate, replacing: draft.original?.id, acknowledged: acknowledged, review: aiReview, consultations: consultationsToSave); dismiss(); onSaved() }
-        catch { self.error = error.localizedDescription }
+        do {
+            let medication = try draft.medication()
+            // Saving is independent of the network check; late responses cannot attach to it.
+            let currentReview = reviewedList == store.state.medications ? aiReview : nil
+            try store.save(medication, replacing: draft.original?.id, acknowledged: acknowledged,
+                           review: currentReview, consultations: consultationsToSave)
+            reviewRequest = UUID(); checkingAI = false
+            dismiss(); onSaved()
+        } catch { self.error = error.localizedDescription }
     }
 }

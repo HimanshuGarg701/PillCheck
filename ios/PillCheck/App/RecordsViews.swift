@@ -41,7 +41,7 @@ struct MedicinesView: View {
                             if !med.instructions.isEmpty { Text(med.instructions).font(.subheadline).foregroundStyle(Theme.muted) }
                             if med.isSchedulePaused { Text("Reminders are paused. This medicine stays in interaction checks. Resume to schedule future doses at the recorded times.").font(.subheadline).foregroundStyle(Theme.muted) }
                             if MedicationEngine.isHighRisk(med) { WarningBox(text: PillCheckCopy.pharmacist) }
-                            Button { reviewing = med } label: { Label("AI interactions & timing", systemImage: "sparkles") }.buttonStyle(PrimaryButtonStyle())
+                            Button { reviewing = med } label: { Label("Risk Factor Check", systemImage: "sparkles") }.buttonStyle(PrimaryButtonStyle())
                             actionLayout {
                                 Button { edit = MedicineDraft(medicine: med, now: store.now) } label: { Label("Edit", systemImage: "pencil") }
                                     .accessibilityLabel("Update record for \(med.name)")
@@ -60,11 +60,11 @@ struct MedicinesView: View {
                     if risks.isEmpty {
                         VStack(alignment: .leading, spacing: 12) {
                             Text("No known interaction found in this reference set.").font(.headline)
-                            Text("The offline reference set covers one curated metformin/cimetidine pair. Use AI interactions & timing above for a review of retrieved U.S. references. No flag does not mean a combination is safe.").font(.subheadline).foregroundStyle(Theme.muted)
+                            Text("The offline reference set covers one curated metformin/cimetidine pair. Use Risk Factor Check above for a review of retrieved U.S. references. No flag does not mean a combination is safe.").font(.subheadline).foregroundStyle(Theme.muted)
                         }.card()
                     } else { ForEach(risks) { flag in RiskFlagView(flag: flag, consultation: ConsultationConcern.from(flag: flag, medications: store.state.medications)) } }
                     if let reviews = store.state.medicationReviews, !reviews.isEmpty {
-                        Text("Saved AI review snapshots").font(.title2.bold())
+                        Text("Previous risk checks").font(.title2.bold())
                         Text("Historical reviews may no longer match your current list. Run a fresh check after any prescription change.").font(.subheadline).foregroundStyle(Theme.muted)
                         ForEach(reviews.reversed()) { review in
                             Button { savedReview = review } label: {
@@ -93,7 +93,7 @@ struct MedicinesView: View {
                 .sheet(item: $edit) { draft in MedicineEditor(draft: draft) }
                 .sheet(item: $reviewing) { med in MedicationAIReviewView(medication: med) }
                 .sheet(item: $savedReview) { review in
-                    NavigationStack { BrandScrollView { VStack(alignment: .leading, spacing: 20) { WarningBox(text: "Historical snapshot. Run a new review for the current medication list."); MedicationReviewContent(review: review) }.padding(20) }.navigationTitle("Saved review").navigationBarTitleDisplayMode(.inline).toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { savedReview = nil } } } }
+                    NavigationStack { BrandScrollView { VStack(alignment: .leading, spacing: 20) { WarningBox(text: "Historical snapshot. Run a new review for the current medication list."); MedicationReviewContent(review: review) }.padding(20) }.navigationTitle("Previous risk check").navigationBarTitleDisplayMode(.inline).toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { savedReview = nil } } } }
                 }
                 .deferReminderCards(while: add || edit != nil || reviewing != nil || savedReview != nil || archiving != nil)
                 .alert("Stop this medication schedule?", isPresented: Binding(get: { archiving != nil }, set: { if !$0 { archiving = nil } })) {

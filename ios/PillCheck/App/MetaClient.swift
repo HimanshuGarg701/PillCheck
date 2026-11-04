@@ -35,6 +35,8 @@ struct MetaClient {
     }
     func review(candidate: Medication, medications: [Medication]) async throws -> MedicationAIReview {
         func json<T: Encodable>(_ value: T) throws -> Any { try JSONSerialization.jsonObject(with: PillTime.encoder().encode(value)) }
-        return try await post(["task": "review", "candidate": try json(candidate), "medications": try json(medications)], as: MedicationAIReview.self)
+        var result = try await post(["task": "review", "candidate": try json(candidate), "medications": try json(medications)], as: MedicationAIReview.self)
+        result.doseCheck = MedicationDoseCheck.assess(candidate)
+        return result
     }
 }

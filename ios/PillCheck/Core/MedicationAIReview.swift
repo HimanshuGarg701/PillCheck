@@ -49,6 +49,16 @@ struct MedicationAIReview: Identifiable, Codable, Equatable {
         let spacingSourceId: String?
         let explanation: String
         let evidence: [Evidence]
+        var hasRisk: Bool { ingredientFinding == "possible_duplicate" || interactionFinding == "potential_interaction" || spacingMinutes != nil }
+        var needsMoreInformation: Bool { ingredientFinding == "uncertain" || interactionFinding == "uncertain" }
+        var conciseMessage: String {
+            var messages: [String] = []
+            if ingredientFinding == "possible_duplicate" { messages.append("May contain the same active ingredient as \(medicationName).") }
+            if interactionFinding == "potential_interaction" { messages.append("May not go well with \(medicationName).") }
+            if let minutes = spacingMinutes { messages.append("Ask your pharmacist about separating them by at least \(PillTime.number(Double(minutes) / 60)) hours.") }
+            if messages.isEmpty { messages.append("Couldn’t fully check against \(medicationName).") }
+            return messages.joined(separator: " ")
+        }
         var ingredientTitle: String {
             switch ingredientFinding {
             case "possible_duplicate": "Possible same ingredient / different brand"
@@ -85,5 +95,19 @@ struct MedicationAIReview: Identifiable, Codable, Equatable {
     let requestId: String?
     // Associates an intake snapshot with the regimen actually saved after an edit.
     var savedMedicationID: String? = nil
+    var doseCheck: MedicationDoseCheck? = nil
     var completed: Bool { aiStatus == "completed" }
+    var alertPairs: [Pair] { pairs.filter(\.hasRisk) }
+    var incompletePairs: [Pair] { pairs.filter { !$0.hasRisk && $0.needsMoreInformation } }
+    func represents(_ flag: RiskFlag) -> Bool {
+        if flag.kind == "dose" { return doseCheck?.isHigh == true }
+        guard ["duplicate", "interaction"].contains(flag.kind), !flag.medications.isEmpty else { return false }
+        return flag.medications.allSatisfy { id in
+            pairs.contains { pair in
+                pair.medicationId == id && (flag.kind == "duplicate"
+                    ? pair.ingredientFinding == "possible_duplicate"
+                    : pair.interactionFinding == "potential_interaction")
+            }
+        }
+    }
 }

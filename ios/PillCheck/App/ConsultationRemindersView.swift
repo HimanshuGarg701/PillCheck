@@ -10,9 +10,9 @@ struct ConsultationCheckbox: View {
                 Image(systemName: isSelected ? "checkmark.square.fill" : "square")
                     .font(.title2).foregroundStyle(Theme.accent).accessibilityHidden(true)
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("Consult with doctor").font(.headline).foregroundStyle(Theme.ink)
-                    Text(savesWithPrescription ? "Add to Reminders when you save this prescription." : isSelected ? "Added to Reminders" : "Add a follow-up to Reminders.")
-                        .font(.footnote).foregroundStyle(Theme.muted)
+                    Text("Consult with doctor").font(.headline).foregroundStyle(Theme.ink).fixedSize(horizontal: false, vertical: true)
+                    Text(savesWithPrescription ? "Saves to Reminders with this medicine." : isSelected ? "Added to Reminders" : "Add a follow-up to Reminders.")
+                        .font(.footnote).foregroundStyle(Theme.muted).fixedSize(horizontal: false, vertical: true)
                 }
                 Spacer(minLength: 0)
             }.frame(minHeight: 44, alignment: .leading).contentShape(Rectangle())
