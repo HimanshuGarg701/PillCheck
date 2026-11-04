@@ -25,30 +25,37 @@ final class RiskFactorCheckTests: XCTestCase {
         XCTAssertThrowsError(try MedicationEngine.save(duplicate, replacing: nil, acknowledged: true, state: &state, now: day))
         XCTAssertEqual(state, after)
     }
-    func testDoseCeilingUsesProductFormStrengthAndRecordedDailyAmount() throws {
-        var medicine = try MedicineDraft.glucophageSample(startDate: day).medication()
-        XCTAssertFalse(try XCTUnwrap(MedicationDoseCheck.assess(medicine)).isHigh)
-        medicine.doseQuantity = 3
-        let dose = try XCTUnwrap(MedicationDoseCheck.assess(medicine))
-        XCTAssertEqual(dose.dailyMg, 3000)
-        XCTAssertEqual(dose.adultMaximumDailyMg, 2550)
-        XCTAssertTrue(dose.isHigh)
-        XCTAssertTrue(MedicationEngine.risks(for: medicine, in: SeedData.make(now: day), now: day).contains { $0.kind == "dose" })
-        medicine.name = "Glucophage XR"; medicine.doseQuantity = 2
-        XCTAssertFalse(try XCTUnwrap(MedicationDoseCheck.assess(medicine)).isHigh)
-        medicine.strengthMg = 750
-        XCTAssertTrue(try XCTUnwrap(MedicationDoseCheck.assess(medicine)).isHigh)
-        for name in ["Metformin", "Fortamet", "Glumetza", "Unknown"] {
-            medicine.name = name
-            XCTAssertNil(MedicationDoseCheck.assess(medicine))
+    func testMoreThanSixPillsRequiresExactQuantityConfirmationWithoutBrandRules() throws {
+        var draft = MedicineDraft.glucophageSample(startDate: day)
+        for name in ["Glucophage", "Amlodipine", "Another medicine"] {
+            draft.name = name
+            for amount in [1, 6] {
+                draft.pillDose = "\(amount) tablets"
+                XCTAssertNil(draft.largePillDose)
+                XCTAssertNoThrow(try draft.medicationForSaving(quantityConfirmed: false))
+            }
+            for amount in [7, 100, 200] {
+                draft.pillDose = "\(amount) tablets"
+                XCTAssertEqual(draft.largePillDose, "\(amount) tablets")
+                XCTAssertThrowsError(try draft.medicationForSaving(quantityConfirmed: false))
+                XCTAssertEqual(try draft.medicationForSaving(quantityConfirmed: true).doseQuantity, Double(amount))
+                XCTAssertFalse(MedicationEngine.risks(for: try draft.medication(), in: SeedData.make(now: day), now: day).contains { $0.kind == "dose" })
+            }
         }
-        medicine.name = "Glucophage"; medicine.strengthMg = 500
-        medicine.doseUnit = "mL"; medicine.strengthVolumeMl = 5
-        XCTAssertNil(MedicationDoseCheck.assess(medicine))
-        medicine.doseUnit = "tablet"; medicine.strengthVolumeMl = nil; medicine.ingredient = "another ingredient"
-        XCTAssertNil(MedicationDoseCheck.assess(medicine))
-        medicine.ingredient = "metformin"; medicine.strengthMg = 750
-        XCTAssertNil(MedicationDoseCheck.assess(medicine))
+        draft.pillDose = "6.5 capsules"
+        XCTAssertEqual(draft.largePillDose, "6.5 capsules")
+        draft.isLiquid = true; draft.liquidStrength = "250 mg / 5 mL"; draft.liquidAmount = "100"
+        XCTAssertNil(draft.largePillDose)
+        XCTAssertNoThrow(try draft.medicationForSaving(quantityConfirmed: false))
+    }
+    func testHistoricalDoseSnapshotsStillDecode() throws {
+        let url = Bundle.module.url(forResource: "review", withExtension: "json", subdirectory: "Fixtures")!
+        var review = try PillTime.decoder().decode(MedicationAIReview.self, from: Data(contentsOf: url))
+        review.doseCheck = MedicationDoseCheck(dailyMg: 3000, adultMaximumDailyMg: 2550, sourceURL: "https://www.accessdata.fda.gov/")
+        let restored = try PillTime.decoder().decode(MedicationAIReview.self, from: PillTime.encoder().encode(review))
+        XCTAssertEqual(review, restored)
+        XCTAssertTrue(restored.hasDoseConcern)
+        XCTAssertNotNil(restored.doseConsultationConcern)
     }
     func testConciseFindingsKeepIncompleteChecksSeparateFromRisks() throws {
         let url = Bundle.module.url(forResource: "review", withExtension: "json", subdirectory: "Fixtures")!
@@ -64,9 +71,11 @@ final class RiskFactorCheckTests: XCTestCase {
         XCTAssertFalse(unknown.hasRisk)
         XCTAssertTrue(unknown.needsMoreInformation)
         XCTAssertEqual(unknown.conciseMessage, "Couldn’t fully check against Other medicine.")
-        var medicine = try MedicineDraft.glucophageSample(startDate: day).medication(); medicine.doseQuantity = 3
-        review.doseCheck = MedicationDoseCheck.assess(medicine)
+        XCTAssertNil(review.doseAssessment)
+        review.doseAssessment = MedicationDoseAssessment(finding: "potential_high_dose", basis: "strength_or_daily_total", source: "meta", evidence: [], message: "The entered dose may be too high. Confirm the amount with your pharmacist.")
+        XCTAssertTrue(review.hasDoseConcern)
         XCTAssertNotNil(review.doseConsultationConcern)
+        XCTAssertTrue(review.doseConsultationConcern!.sources.isEmpty)
         XCTAssertEqual(try PillTime.decoder().decode(MedicationAIReview.self, from: PillTime.encoder().encode(review)), review)
     }
 }

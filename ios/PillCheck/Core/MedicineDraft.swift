@@ -70,6 +70,14 @@ struct MedicineDraft: Identifiable, Equatable {
         startDate = now; source = "meta-reviewed"
         explanation = scan.explanation; uncertain = scan.uncertainFields
     }
+    var largePillDose: String? {
+        guard !isLiquid, let dose = try? DoseEntry.pill(pillDose), dose.amount > 6 else { return nil }
+        return "\(PillTime.number(dose.amount)) \(dose.unit)s"
+    }
+    func medicationForSaving(quantityConfirmed: Bool) throws -> Medication {
+        if let dose = largePillDose, !quantityConfirmed { throw PillCheckError("Confirm that \(dose) per dose is correct.") }
+        return try medication()
+    }
     func medication() throws -> Medication {
         let mg: Double
         let volume: Double?

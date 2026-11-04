@@ -18,7 +18,7 @@ enum MedicationEngine {
             guard !value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty, value.count <= 100 else { throw PillCheckError("Confirm the \(title).") }
         }
         guard m.strengthMg.isFinite, m.strengthMg > 0, m.strengthMg <= 100_000 else { throw PillCheckError("Confirm the strength in mg.") }
-        guard m.doseQuantity.isFinite, m.doseQuantity > 0, m.doseQuantity <= 100 else { throw PillCheckError(m.isLiquid ? "Confirm the amount per dose in mL." : "Confirm the recorded pill dose.") }
+        guard m.doseQuantity.isFinite, m.doseQuantity > 0 else { throw PillCheckError(m.isLiquid ? "Confirm the amount per dose in mL." : "Confirm the recorded pill dose.") }
         if let ml = m.strengthVolumeMl {
             guard m.isLiquid, ml.isFinite, ml > 0, ml <= 1_000 else { throw PillCheckError("Confirm the bottle strength in mg and mL.") }
         }
@@ -45,9 +45,6 @@ enum MedicationEngine {
         let others = state.medications.filter { $0.id != candidate.id }
         let duplicates = others.filter { $0.status == .active && canonical($0.ingredient) == canonical(candidate.ingredient) }
         var flags: [RiskFlag] = []
-        if let dose = MedicationDoseCheck.assess(candidate), dose.isHigh {
-            flags.append(RiskFlag(kind: "dose", title: "Dose may be too high", explanation: dose.message, sourceURL: dose.sourceURL, at: now))
-        }
         if !duplicates.isEmpty {
             flags.append(RiskFlag(kind: "duplicate", title: "Same active ingredient", explanation: "May contain the same active ingredient as \(duplicates.map(\.name).joined(separator: ", ")). Taking both can increase your total dose.", medications: duplicates.map(\.id), combinedMg: candidate.dailyMg + duplicates.reduce(0) { $0 + $1.dailyMg }, at: now))
         }

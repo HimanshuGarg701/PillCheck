@@ -168,6 +168,7 @@ struct MedicineEditor: View {
     var onSaved: () -> Void = {}
     @State private var reviewed = false
     @State private var acknowledged = false
+    @State private var quantityConfirmed = false
     @State private var aiReview: MedicationAIReview?
     @State private var selectedConsultations = Set<String>()
     @State private var checkingAI = false
@@ -188,7 +189,7 @@ struct MedicineEditor: View {
     }
     private var candidate: Medication? { try? draft.medication() }
     private var flags: [RiskFlag] { candidate.map { MedicationEngine.risks(for: $0, in: store.state, now: store.now) } ?? [] }
-    private var needsAcknowledgment: Bool { !flags.isEmpty || !(aiReview?.alertPairs.isEmpty ?? true) }
+    private var needsAcknowledgment: Bool { !flags.isEmpty || !(aiReview?.alertPairs.isEmpty ?? true) || aiReview?.hasDoseConcern == true }
     private var visibleFlags: [RiskFlag] { flags.filter { aiReview?.represents($0) != true } }
     private var enteredName: String { IngredientIdentification.nameKey(draft.name) }
     private var nameBinding: Binding<String> {
@@ -229,6 +230,16 @@ struct MedicineEditor: View {
                     } else {
                         field("Strength (mg)", text: $draft.strength).keyboardType(.decimalPad)
                         field("Dose", text: $draft.pillDose, placeholder: "e.g. 1 tablet or 2 capsules").accessibilityIdentifier("pill-dose")
+                        if let dose = draft.largePillDose {
+                            Button { quantityConfirmed.toggle() } label: {
+                                HStack(alignment: .top, spacing: 12) {
+                                    Image(systemName: quantityConfirmed ? "checkmark.square.fill" : "square").font(.title2)
+                                    Text("Are you sure it’s \(dose) per dose?").fixedSize(horizontal: false, vertical: true)
+                                }.frame(minHeight: 44, alignment: .leading)
+                            }.buttonStyle(.plain).foregroundStyle(Theme.accent)
+                                .accessibilityIdentifier("confirm-pill-quantity")
+                                .accessibilityValue(quantityConfirmed ? "Checked" : "Unchecked")
+                        }
                     }
                     field("Frequency (e.g. twice daily)", text: $draft.frequency)
                     field("Times (e.g. 08:00, 18:00)", text: $draft.times).keyboardType(.numbersAndPunctuation)
@@ -274,13 +285,15 @@ struct MedicineEditor: View {
                 .safeAreaInset(edge: .bottom) {
                     Button(draft.original == nil ? "Add medicine" : "Save changes") { save() }
                         .buttonStyle(PrimaryButtonStyle())
-                        .disabled(!reviewed || identifying || (needsAcknowledgment && !acknowledged))
+                        .disabled(!reviewed || identifying || (draft.largePillDose != nil && !quantityConfirmed) || (needsAcknowledgment && !acknowledged))
                         .accessibilityIdentifier("save-medicine")
                         .padding(.horizontal, 20).padding(.vertical, 10).background(.regularMaterial)
                 }
                 .navigationTitle(draft.original == nil ? "Add medicine" : "Update regimen").navigationBarTitleDisplayMode(.inline)
                 .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Cancel") { reviewRequest = UUID(); dismiss() } } }
                 .onChange(of: draft) { _, _ in clearCheck() }
+                .onChange(of: draft.pillDose) { _, _ in quantityConfirmed = false }
+                .onChange(of: draft.isLiquid) { _, _ in quantityConfirmed = false }
                 .onChange(of: store.state.medications) { _, _ in
                     clearCheck(); error = "Your medicine list changed. Check the details and concerns before adding."
                 }
@@ -383,7 +396,7 @@ struct MedicineEditor: View {
             clearCheck(); error = "Your medicine list changed. Check the details and concerns before adding."; return
         }
         do {
-            let medication = try draft.medication()
+            let medication = try draft.medicationForSaving(quantityConfirmed: quantityConfirmed)
             // Saving is independent of the network check; late responses cannot attach to it.
             let currentReview = reviewedList == store.state.medications ? aiReview : nil
             try store.save(medication, replacing: draft.original?.id, acknowledged: acknowledged,

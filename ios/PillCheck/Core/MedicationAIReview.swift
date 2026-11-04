@@ -96,11 +96,14 @@ struct MedicationAIReview: Identifiable, Codable, Equatable {
     // Associates an intake snapshot with the regimen actually saved after an edit.
     var savedMedicationID: String? = nil
     var doseCheck: MedicationDoseCheck? = nil
+    var doseAssessment: MedicationDoseAssessment? = nil
+    var hasDoseConcern: Bool { doseAssessment?.isHigh ?? (doseCheck?.isHigh == true) }
+    var doseConcernMessage: String? { hasDoseConcern ? (doseAssessment?.message ?? doseCheck?.message) : nil }
     var completed: Bool { aiStatus == "completed" }
     var alertPairs: [Pair] { pairs.filter(\.hasRisk) }
     var incompletePairs: [Pair] { pairs.filter { !$0.hasRisk && $0.needsMoreInformation } }
     func represents(_ flag: RiskFlag) -> Bool {
-        if flag.kind == "dose" { return doseCheck?.isHigh == true }
+        if flag.kind == "dose" { return hasDoseConcern }
         guard ["duplicate", "interaction"].contains(flag.kind), !flag.medications.isEmpty else { return false }
         return flag.medications.allSatisfy { id in
             pairs.contains { pair in

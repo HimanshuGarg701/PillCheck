@@ -38,11 +38,15 @@ extension MedicationAIReview {
 
     var doseConsultationConcern: ConsultationConcern? {
         let otherIDs = Set(pairs.map(\.medicationId))
-        guard let dose = doseCheck, dose.isHigh,
+        guard let message = doseConcernMessage,
               let candidateID = savedMedicationID ?? identities.first(where: { !otherIDs.contains($0.medicationId) })?.medicationId else { return nil }
+        let evidence = doseAssessment?.evidence ?? []
+        var references = sources.filter { source in evidence.contains { $0.sourceId == source.id } }
+        if doseAssessment == nil, let dose = doseCheck {
+            references = [.init(id: "dose-label", title: "Saved dose reference", url: dose.sourceURL, truncated: false, note: "Reference retained from this historical review.")]
+        }
         return ConsultationConcern(medicines: [.init(id: candidateID, name: candidateName)], title: "Dose may be too high",
-            detail: dose.message + " Adult label ceiling only; personal limits may be lower.", reviewedAt: createdAt, reviewID: id,
-            sources: [.init(id: "dose-label", title: "FDA prescribing information · adult dosage", url: dose.sourceURL, truncated: false, note: "Glucophage / Glucophage XR, May 2018, sections 2.1 and 3. Adult ceiling only; individual suitability is not assessed.")], evidence: [])
+            detail: message, reviewedAt: createdAt, reviewID: id, sources: references, evidence: evidence)
     }
 
     func consultationConcern(for pair: Pair) -> ConsultationConcern? {

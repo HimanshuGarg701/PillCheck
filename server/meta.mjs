@@ -220,8 +220,9 @@ export async function runTask(body, options = {}) {
         : "The reference check could not start.",
     );
   }
+  let result;
   try {
-    const result = await inferTask(body, options, context);
+    result = await inferTask(body, options, context);
     return finishReview(context, result, {
       model: result.model,
       requestId: result.requestId,
@@ -232,6 +233,7 @@ export async function runTask(body, options = {}) {
       error instanceof RequestError || error instanceof ReviewError
         ? error.message
         : "AI review could not complete. Retry when the connection is available.",
+      result?.doseAssessment,
     );
   }
 }

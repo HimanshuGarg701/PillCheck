@@ -73,11 +73,11 @@ For scheduling, the AI may propose a **draft for pharmacist review** only when t
 
 Names are sent to U.S. reference services; medication details and relevant reference excerpts are sent through the backend to Meta. The patient's name and dose history are excluded. Reviews saved with a prescription are retained as dated snapshots and must be rerun after medication changes. FDA explicitly says [not to rely on openFDA for medical-care decisions](https://open.fda.gov/apis/drug/label/).
 
-## Dose warning coverage
+## AI dose feedback
 
-The native risk screen also applies a small, deterministic adult label-ceiling check, separate from Meta’s interaction analysis. It currently supports **Glucophage tablets (500/850/1000 mg)** and **Glucophage XR tablets (500/750 mg)**, with adult daily ceilings of 2550 mg and 2000 mg respectively from [FDA prescribing information, sections 2.1 and 3](https://www.accessdata.fda.gov/drugsatfda_docs/label/2018/020357s034,021202s018lbl.pdf). It uses the entered strength, quantity and number of daily times. These rules do not extend to other brands, unknown formulations, liquids or combination products. Unsupported products explicitly show that their dose limit could not be verified.
+**Risk Factor Check** asks Meta to assess the entered dose for every medicine using the quantity per dose, strength, liquid concentration when relevant, scheduled daily frequency and retrieved references. It can flag a potentially excessive amount without a product-specific threshold table. The server computes per-dose and daily mg totals, checks cited passages, and presents a short concern with **Consult with doctor**. A qualitative concern is not a numerical maximum or a replacement prescription. Unknown or failed assessments remain incomplete; no concern flagged is not proof of suitability. The earlier Glucophage-specific rules no longer run; historical snapshots still decode.
 
-This screens for exceeding a label ceiling, not whether a dose is suitable for an individual. Age, kidney function, titration, indication and other patient-specific limits are not assessed, and a dose below the ceiling is never labeled safe. High-dose concerns can be saved to doctor follow-ups. Earlier review snapshots without a dose assessment remain readable.
+Entering **more than 6 pills per dose** displays a checkbox with the exact count, for example **Are you sure it’s 7 tablets per dose?** Confirmation is required before saving and resets when the entered count or medicine form changes. It is an entry confirmation, not a clinical dose limit, and it does not apply to liquid volumes. The optional AI check can still run before confirming the number.
 
 ## Native verification
 

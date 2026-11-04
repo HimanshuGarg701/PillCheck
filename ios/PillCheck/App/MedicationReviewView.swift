@@ -13,10 +13,10 @@ struct MedicationReviewContent: View {
                     if let concern = review.consultationConcern(for: pair) { consultation(concern) }
                 }.card(Theme.warningSoft)
             }
-            if let dose = review.doseCheck, dose.isHigh {
+            if let message = review.doseConcernMessage {
                 VStack(alignment: .leading, spacing: 12) {
                     Label("Dose may be too high", systemImage: "exclamationmark.triangle.fill").font(.headline).foregroundStyle(Theme.amber)
-                    Text(dose.message)
+                    Text(message)
                     if let concern = review.doseConsultationConcern { consultation(concern) }
                 }.card(Theme.warningSoft)
             }
@@ -27,9 +27,9 @@ struct MedicationReviewContent: View {
             } else if review.alertPairs.isEmpty {
                 Text(review.pairs.isEmpty ? "No other medicines to compare." : "No interaction flagged in the references checked.").font(.subheadline)
             }
-            if review.doseCheck == nil {
-                Text("Dose limit could not be verified for this medicine.").font(.footnote).foregroundStyle(Theme.muted)
-            } else {
+            if review.doseAssessment?.isIncomplete == true || (review.doseAssessment == nil && review.doseCheck == nil) {
+                Text("The dose could not be fully checked.").font(.footnote).foregroundStyle(Theme.muted)
+            } else if review.doseAssessment == nil && review.doseCheck != nil {
                 Text("Dose screening uses an adult label limit; your personal limit may be lower.").font(.footnote).foregroundStyle(Theme.muted)
             }
             Text("Confirm concerns with your doctor or pharmacist before changing your medicines.").font(.footnote).foregroundStyle(Theme.muted)
@@ -116,6 +116,17 @@ private struct MedicationReviewDetails: View {
             if let dose = review.doseCheck, let url = URL(string: dose.sourceURL) {
                 Text("Adult dose ceiling only. Age, kidney function, dose titration and individual instructions are not assessed.").font(.footnote)
                 Link("Dose reference · FDA prescribing information", destination: url).font(.footnote)
+            }
+            if let dose = review.doseAssessment {
+                Text("Dose check").font(.headline)
+                Text(dose.message).font(.subheadline)
+                Text("AI considers the entered amount, strength and schedule. This is a plausibility check, not a prescribed dose or a verified maximum.").font(.footnote).foregroundStyle(Theme.muted)
+                ForEach(Array(dose.evidence.enumerated()), id: \.offset) { _, evidence in
+                    Text("“\(evidence.quote)”").font(.footnote)
+                    if let source = review.sources.first(where: { $0.id == evidence.sourceId }), let url = URL(string: source.url) {
+                        Link(source.title, destination: url).font(.footnote)
+                    }
+                }
             }
         }
     }

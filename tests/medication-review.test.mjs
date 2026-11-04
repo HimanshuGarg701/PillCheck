@@ -101,6 +101,7 @@ const mockReferences = async (raw) => {
 };
 const aiFor = (c) => ({
   summary: "Potential duplicate ingredient warrants pharmacist review.",
+  doseAssessment: { finding: "not_flagged", basis: "none", evidence: [] },
   pairs: c.pairs.map((p) => ({
     medicationId: p.medicationId,
     ingredientFinding:
@@ -276,6 +277,9 @@ test("timing draft preserves existing schedule and rejects unsupported or insuff
   );
   assert.equal(separated("23:30", "00:30", 240), false);
   assert.equal(separated("08:00", "12:00", 240), true);
+  assert.throws(() => finishReview(c, { ...spacingAI(c), doseAssessment: {
+    finding: "potential_high_dose", basis: "strength_or_daily_total", evidence: [],
+  } }), /spacing evidence/);
   c.candidate.highRisk = true;
   assert.throws(() => finishReview(c, spacingAI(c)), /spacing evidence/);
 });
